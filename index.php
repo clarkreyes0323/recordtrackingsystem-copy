@@ -1,7 +1,8 @@
 <?php
 include("./connection/config.php");
 include("./helpers/SystemOperators.php");
-
+header("Location: login.php");
+exit();
 $con = connection();$so = new SystemOperators();
 
 if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])){
