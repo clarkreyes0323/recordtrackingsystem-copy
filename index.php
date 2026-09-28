@@ -53,7 +53,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['btnLogin'])) {
             if ($role === 'admin') {
                 header("Location: admin_dashboard.php");
             } else {
-                header("Location: request.php"); // Redirects student to request.php
+                header("Location: track.php"); 
             }
             exit();
         } else {
