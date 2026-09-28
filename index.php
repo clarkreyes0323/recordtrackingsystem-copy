@@ -129,7 +129,7 @@ $con->close();
 
       <!-- LOGIN FORM -->
       <div class="form-box login">
-        <div class="title">Login</div>
+        <div class="title">Tracking system</div>
 
         <?php if (!empty($error)): ?>
             <p style="color: #dc2626; background: #fee2e2; padding: 8px; border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px;"><?php echo htmlspecialchars($error); ?></p>
@@ -154,14 +154,14 @@ $con->close();
 
           <p class="signup-text">
             Don't have an account?
-            <a href="#" id="showSignup">Signup now</a>
+            <a href="#" id="showSignup">Sign up now</a>
           </p>
         </form>
       </div>
 
       <!-- SIGNUP FORM -->
       <div class="form-box signup" style="display: none;">
-        <div class="title">Signup</div>
+        <div class="title">Sign Up</div>
 
         <!-- Updated action to index.php -->
         <form action="index.php" method="POST">
