@@ -51,11 +51,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['btnLogin'])) {
 
             // Route based on role
             if ($role === 'admin') {
-                header("Location: admin_dashboard.php");
-            } else {
-                header("Location: track.php"); 
-            }
-            exit();
+              header("Location: admin_dashboard.php");
+             } elseif ($role === 'student') {
+               header("Location: student_dashboard.php");
+             } else {
+               $_SESSION = [];
+               session_destroy();
+
+               header("Location: index.php");
+}
+
+exit();
         } else {
             $error = "Invalid email or password.";
         }

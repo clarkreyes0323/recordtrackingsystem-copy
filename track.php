@@ -1,4 +1,19 @@
 <?php
+session_start();
+
+// Only logged-in students can access the tracker.
+if (!isset($_SESSION["user_id"])) {
+    header("Location: index.php");
+    exit();
+}
+
+if (
+    !isset($_SESSION["role"]) ||
+    $_SESSION["role"] !== "student"
+) {
+    http_response_code(403);
+    exit("Access denied. Students only.");
+}
 include("./connection/config.php");
 include("./helpers/SystemOperators.php");
 

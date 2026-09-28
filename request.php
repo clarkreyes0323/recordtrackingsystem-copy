@@ -2,6 +2,15 @@
 ob_start();
 session_start();
 
+// Student authentication
+if (
+    !isset($_SESSION['user_id']) ||
+    ($_SESSION['role'] ?? '') !== 'student'
+) {
+    header("Location: index.php");
+    exit();
+}
+
 include("./connection/config.php");
 include("./helpers/SystemOperators.php");
 

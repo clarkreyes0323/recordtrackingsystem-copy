@@ -1,4 +1,19 @@
 <?php
+session_start();
+
+if (!isset($_SESSION["user_id"])) {
+    header("Location: index.php");
+    exit();
+}
+
+if (
+    !isset($_SESSION["role"]) ||
+    $_SESSION["role"] !== "admin"
+) {
+    http_response_code(403);
+    exit("Access denied. Administrators only.");
+}
+
 include("./connection/config.php");
 include("./helpers/SystemOperators.php");
 
