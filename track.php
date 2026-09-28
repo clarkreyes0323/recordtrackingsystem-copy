@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnTrack'])) {$search
 </head>
 <body>
     <h2>Track Document Request</h2>
-    <p><a href="index.php" class="back-link">← Back to Request Form</a></p>
+    <p><a href="request.php" class="back-link">← Back to Request Form</a></p>
 
     <form action="track.php" method="post">
         <div class="form-fields">

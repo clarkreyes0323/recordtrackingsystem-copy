@@ -1,155 +1,218 @@
 <?php
+ob_start(); // Prevents header redirection output blocks
+session_start();
+
 include("./connection/config.php");
 include("./helpers/SystemOperators.php");
-header("Location: login.php");
-exit();
-$con = connection();$so = new SystemOperators();
 
-if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])){
-    $raw_file_no = "DOC-" . date("Ymd") . "-" . strtoupper($so->randomStringGenerator(8));$file_no     = $so->encrypt($raw_file_no);
+$con = connection();
+$so  = new SystemOperators();
 
-    $student_no =$so->encrypt(filter_input(INPUT_POST, 'student_no', FILTER_SANITIZE_SPECIAL_CHARS));
-    $fname      =$so->encrypt(filter_input(INPUT_POST, 'firstname', FILTER_SANITIZE_SPECIAL_CHARS));
-    $lname      =$so->encrypt(filter_input(INPUT_POST, 'lastname', FILTER_SANITIZE_SPECIAL_CHARS));
-    $mname      =$so->encrypt(filter_input(INPUT_POST, 'middlename', FILTER_SANITIZE_SPECIAL_CHARS));
-    $year_level =$so->encrypt(filter_input(INPUT_POST, 'year_level', FILTER_SANITIZE_SPECIAL_CHARS));
-    $program    =$so->encrypt(filter_input(INPUT_POST, 'program', FILTER_SANITIZE_SPECIAL_CHARS));
-    $email      =$so->encrypt(filter_input(INPUT_POST, 'email', FILTER_SANITIZE_SPECIAL_CHARS));
-    $doc_type   =$so->encrypt(filter_input(INPUT_POST, 'doc_type', FILTER_SANITIZE_SPECIAL_CHARS));
-    $purpose    =$so->encrypt(filter_input(INPUT_POST, 'purpose', FILTER_SANITIZE_SPECIAL_CHARS));
-    
-    $status     =$so->encrypt('Pending');
-    $claiming_area =$so->encrypt('Pending Registrar Assignment');
+$error   = "";
+$success = "";
 
-    $insert_query = "INSERT INTO `document_requests` 
-                    (`file_no`, `student_no`, `firstname`, `lastname`, `middlename`, `year_level`, `program`, `email`, `doc_type`, `purpose`, `claiming_area`, `status`) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    $insert_stmt = $con->prepare($insert_query);
-    $insert_stmt->bind_param('ssssssssssss',$file_no, $student_no,$fname, $lname,$mname, $year_level,$program, $email,$doc_type, $purpose,$claiming_area,$status);
-    
-    try {
-        $insert_stmt->execute();
-        echo "<script> 
-                alert('Request submitted successfully!\\nYour Reference/File No. is: " . $raw_file_no . "\\nPlease save this number for tracking.');
-                window.location='index.php';
-              </script>";
-    } catch(mysqli_sql_exception $e) {
-        echo "Database Error: " . $e->getMessage();
+// -------------------------------------------------------------
+// 1. HANDLE LOGIN
+// -------------------------------------------------------------
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['btnLogin'])) {
+    $email    = trim(filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL) ?? '');
+    $password = $_POST["password"] ?? "";
+
+    if ($email === "" || $password === "") {
+        $error = "Please enter both email and password.";
+    } else {
+        $query = "SELECT id, name, email, password, role FROM users";
+        $stmt  = $con->prepare($query);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $matched_user = null;
+
+        while ($row = $result->fetch_assoc()) {
+            $db_email = $so->decrypt($row['email'] ?? '') ?: $row['email'];
+
+            if (strtolower(trim($db_email)) === strtolower($email)) {
+                $matched_user = $row;
+                break;
+            }
+        }
+        $stmt->close();
+
+        if ($matched_user && password_verify($password, $matched_user["password"])) {
+            session_regenerate_id(true);
+
+            // Decrypt & normalize role string
+            $raw_role = $matched_user["role"] ?? 'student';
+            $role     = strtolower(trim($so->decrypt($raw_role) ?: $raw_role));
+
+            $_SESSION["user_id"]   = $matched_user["id"];
+            $_SESSION["user_name"] = $matched_user["name"];
+            $_SESSION["role"]      = $role;
+
+            // Route based on role
+            if ($role === 'admin') {
+                header("Location: admin_dashboard.php");
+            } else {
+                header("Location: request.php"); // Redirects student to request.php
+            }
+            exit();
+        } else {
+            $error = "Invalid email or password.";
+        }
     }
-    
-    $insert_stmt->close();
 }
+
+// -------------------------------------------------------------
+// 2. HANDLE SIGNUP / REGISTRATION
+// -------------------------------------------------------------
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['btnSignup'])) {
+    $name     = trim(filter_input(INPUT_POST, 'fullname', FILTER_SANITIZE_SPECIAL_CHARS) ?? '');
+    $email    = trim(filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL) ?? '');
+    $password = $_POST["password"] ?? "";
+
+    if ($name === "" || $email === "" || $password === "") {
+        $error = "Please fill in all fields to sign up.";
+    } else {
+        // Check if email exists
+        $stmt = $con->prepare("SELECT id, email FROM users");
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $already_exists = false;
+        while ($row = $result->fetch_assoc()) {
+            $db_email = $so->decrypt($row['email'] ?? '') ?: $row['email'];
+            if (strtolower(trim($db_email)) === strtolower($email)) {
+                $already_exists = true;
+                break;
+            }
+        }
+        $stmt->close();
+
+        if ($already_exists) {
+            $error = "Email address is already registered.";
+        } else {
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            $enc_email      = $so->encrypt($email);
+            $role           = 'student';
+
+            $insertStmt = $con->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)");
+            $insertStmt->bind_param("ssss", $name, $enc_email, $hashedPassword, $role);
+
+            if ($insertStmt->execute()) {
+                $success = "Account created successfully! You can now log in.";
+            } else {
+                $error = "Registration failed. Please try again.";
+            }
+            $insertStmt->close();
+        }
+    }
+}
+
+$con->close();
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Request Form</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEU Roosevelt - Login & Registration</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
+
 <body>
 
-    <h2>Student Document Request Form</h2>
-    
-    <form action="" method="post">
-        <div class="form-fields">
-            <div class="form-items">
-                <label>Student No.:</label>
-                <input type="text" name="student_no" required placeholder="2026-0001">
-            </div>
-            <div class="form-items">
-                <label>Last Name:</label>
-                <input type="text" name="lastname" required placeholder="Dela Cruz">
-            </div>
-            <div class="form-items">
-                <label>First Name:</label>
-                <input type="text" name="firstname" required placeholder="Juan">
-            </div>
-            <div class="form-items">
-                <label>Middle Name:</label>
-                <input type="text" name="middlename" placeholder="Santos / Leave a blank if none">
-            </div>
-            <div class="form-items">
-                <label>Year Level:</label>
-                <input type="text" name="year_level" placeholder="3rd Year, 4th Year, etc., N/A if not applicable">
-            </div>
-            <div class="form-items">
-                <label>Degree Program / Course:</label>
-                <input type="text" name="program" required placeholder="BSIT, BSN, BSBA, etc., "N/A" if not applicable">
-            </div>
-            <div class="form-items">
-                <label>Email:</label>
-                <input type="email" name="email" required placeholder="example@school.edu">
-            </div>
+  <div class="container">
 
-            <hr>
+    <div class="form-container">
 
-            <div class="form-items">
-                <label>Record Requested Type:</label>
-                <select name="doc_type" required>
-                    <option value="Cert. of Enrollment">Cert. of Enrollment</option>
-                    <option value="Cert. of Registration">Cert. of Registration</option>
-                    <option value="Cert. of Grades">Cert. of Grades</option>
-                    <option value="Cert. of Graduation">Cert. of Graduation</option>
-                    <option value="Form 137 / Transcript">Form 137 / Transcript</option>
-                    <option value="Diploma">Diploma</option>
-                    <option value="Health Record">Health Record</option>
-                </select>
-            </div>
-            <div class="form-items">
-                <label>Purpose:</label>
-                <input type="text" name="purpose" required placeholder="Evaluation / Transfer">
-            </div>
+      <!-- LOGIN FORM -->
+      <div class="form-box login">
+        <div class="title">Login</div>
 
-            <button type="submit" name="btnRegister">Submit Request</button>
-        </div>
-    </form>
+        <?php if (!empty($error)): ?>
+            <p style="color: #dc2626; background: #fee2e2; padding: 8px; border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px;"><?php echo htmlspecialchars($error); ?></p>
+        <?php endif; ?>
 
-    <br><hr><br>
-    // yung part na 'to gawan nyo ng paraan kung pano nyo ilagay sa table na makikita lang ng admin ng mga buong detalyes ng mga submitted requests. Dito rin makikita ng admin kung sino yung nag submit ng request, ano yung request nila, at status ng request nila. //'
-    // lipat nyo din yung part sa track.php na makikita lang ng student kung ano status ng request nila, at kung saan nila makukuha yung request nila once na approved na ito. //
-    <h2>Submitted Requests Tracking List</h2>
-    <table border="1" cellpadding="8" cellspacing="0">
-        <thead>
-            <tr>
-                <th>Ref No.</th>
-                <th>Student No.</th>
-                <th>Student Name</th>
-                <th>Program</th>
-                <th>File Type</th>
-                <th>Purpose</th>
-                <th>Claiming Area</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php 
-            $select_docs = "SELECT * FROM `document_requests` ORDER BY `id` DESC";
-            $select_docs_stmt =$con->prepare($select_docs);$select_docs_stmt->execute();
-            $doclist =$select_docs_stmt->get_result();
+        <?php if (!empty($success)): ?>
+            <p style="color: #166534; background: #dcfce7; padding: 8px; border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px;"><?php echo htmlspecialchars($success); ?></p>
+        <?php endif; ?>
 
-            while($row =$doclist->fetch_assoc()){
-                $file_no    =$so->decrypt($row['file_no']);$student_no = $so->decrypt($row['student_no']);
-                $fname      =$so->decrypt($row['firstname']);$lname      = $so->decrypt($row['lastname']);
-                $program    =$so->decrypt($row['program']);$doc_type   = $so->decrypt($row['doc_type']);
-                $purpose    =$so->decrypt($row['purpose']);$claiming_area = $so->decrypt($row['claiming_area']);
-                $status     =$so->decrypt($row['status']);
-            ?>
-            <tr>
-                <td><strong><?php echo $file_no; ?></strong></td>
-                <td><?php echo $student_no; ?></td>
-                <td><?php echo $fname . " " . $lname; ?></td>
-                <td><?php echo $program; ?></td>
-                <td><?php echo $doc_type; ?></td>
-                <td><?php echo $purpose; ?></td>
-                <td><?php echo $claiming_area; ?></td>
-                <td><?php echo $status; ?></td>
-            </tr>
-            <?php } ?>
-        </tbody>
-    </table>
+        <form action="index.php" method="POST">
+          <div class="input-box">
+            <i class="fa-solid fa-envelope"></i>
+            <input type="email" name="email" placeholder="Enter your email" required value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
+          </div>
+
+          <div class="input-box">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" name="password" placeholder="Enter your password" required>
+          </div>
+
+          <button type="submit" name="btnLogin">Login</button>
+
+          <p class="signup-text">
+            Don't have an account?
+            <a href="#" id="showSignup">Signup now</a>
+          </p>
+        </form>
+      </div>
+
+      <!-- SIGNUP FORM -->
+      <div class="form-box signup" style="display: none;">
+        <div class="title">Signup</div>
+
+        <!-- Updated action to index.php -->
+        <form action="index.php" method="POST">
+          <div class="input-box">
+            <i class="fa-solid fa-user"></i>
+            <input type="text" name="fullname" placeholder="Enter your full name" required>
+          </div>
+
+          <div class="input-box">
+            <i class="fa-solid fa-envelope"></i>
+            <input type="email" name="email" placeholder="Enter your email" required>
+          </div>
+
+          <div class="input-box">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" name="password" placeholder="Create a password" required>
+          </div>
+
+          <button type="submit" name="btnSignup">Signup</button>
+
+          <p class="signup-text">
+            Already have an account?
+            <a href="#" id="showLogin">Login now</a>
+          </p>
+        </form>
+      </div>
+
+    </div>
+
+    <div class="image-container">
+      <div class="image-content"></div>
+    </div>
+
+  </div>
+
+  <script>
+    const loginForm = document.querySelector(".login");
+    const signupForm = document.querySelector(".signup");
+
+    document.getElementById("showSignup").addEventListener("click", function(e) {
+      e.preventDefault();
+      loginForm.style.display = "none";
+      signupForm.style.display = "block";
+    });
+
+    document.getElementById("showLogin").addEventListener("click", function(e) {
+      e.preventDefault();
+      signupForm.style.display = "none";
+      loginForm.style.display = "block";
+    });
+  </script>
 
 </body>
 </html>
