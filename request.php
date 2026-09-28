@@ -1,8 +1,11 @@
 <?php
+ob_start();
+session_start();
+
 include("./connection/config.php");
 include("./helpers/SystemOperators.php");
 
-$con = connection();$so = new SystemOperators();
+$con = connection();$so  = new SystemOperators();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw_file_no = "DOC-" . date("Ymd") . "-" . strtoupper($so->randomStringGenerator(8));$file_no     = $so->encrypt($raw_file_no);
 
@@ -22,14 +25,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw
     $insert_query = "INSERT INTO `document_requests` 
                     (`file_no`, `student_no`, `firstname`, `lastname`, `middlename`, `year_level`, `program`, `email`, `doc_type`, `purpose`, `claiming_area`, `status`) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    
     $insert_stmt =$con->prepare($insert_query);$insert_stmt->bind_param('ssssssssssss', $file_no,$student_no, $fname,$lname, $mname,$year_level, $program,$email, $doc_type,$purpose, $claiming_area,$status);
     
     try {
-        $insert_stmt->execute();
-        echo "<script> 
-                alert('Request submitted successfully!\\nYour Reference/File No. is: " . $raw_file_no . "\\nPlease save this number for tracking.');
-                window.location='track.php';
-              </script>";
+        if ($insert_stmt->execute()) {
+            echo "<script> 
+                    alert('Request submitted successfully!\\nYour Reference/File No. is: " . $raw_file_no . "\\nPlease save this number for tracking.');
+                    window.location='track.php';
+                  </script>";
+            exit();
+        }
     } catch(mysqli_sql_exception $e) {
         echo "<script>alert('Database Error: " . addslashes($e->getMessage()) . "');</script>";
     }
@@ -59,11 +65,13 @@ $con->close();
         <h2>Student Document Request Form</h2>
         <div class="nav-links">
             <a href="track.php">🔍 Track Status</a>
-            <a href="login.php">🔐 Staff Login</a>
+            <!-- Updated to index.php since login page was renamed -->
+            <a href="index.php">🔐 Staff/Student Login</a>
         </div>
     </div>
     
-    <form action="index.php" method="post">
+    <!-- Updated action to request.php so form processes in this file -->
+    <form action="request.php" method="post">
         <div class="form-fields">
             <div class="form-items">
                 <label>Student No.:</label>
