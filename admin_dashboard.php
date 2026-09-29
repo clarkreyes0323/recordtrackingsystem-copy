@@ -67,13 +67,6 @@ $con->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard | Document Requests</title>
     <link rel="stylesheet" href="style.css">
-    <style>
-        .table-wrap { overflow-x: auto; }
-        .request-table { min-width: 950px; }
-        .request-form { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
-        .request-form select, .request-form input, .request-form button, .request-area { width: 100%; padding: 6px; }
-        .success-alert { color: #155724; background-color: #d4edda; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
-    </style>
 </head>
 <body>
 
@@ -102,7 +95,7 @@ $con->close();
             </thead>
             <tbody>
                 <?php if (empty($requests)): ?>
-                    <tr><td colspan="8" style="text-align: center;">No document requests submitted yet.</td></tr>
+                    <tr><td class="empty-requests" colspan="8">No document requests submitted yet.</td></tr>
                 <?php else: ?>
                     <?php foreach ($requests as $request): ?>
                         <?php

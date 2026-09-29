@@ -62,13 +62,6 @@ $con->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Document Request Form</title>
     <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
-    <style>
-        .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .nav-links a { margin-left: 15px; text-decoration: none; font-weight: bold; color: #0066cc; }
-        .nav-links a:hover { text-decoration: underline; }
-        .nav-links .return-link { display: inline-block; padding: 9px 12px; border-radius: 4px; background: #006b3c; color: white; }
-        .nav-links .return-link:hover { background: #00532f; text-decoration: none; }
-    </style>
 </head>
 <body>
 

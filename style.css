@@ -34,7 +34,15 @@ body:has(.container) {
   margin: 0 !important;
 }
 
-.form-box.signup:not([style*="display: block"]) {
+.form-box.signup {
+  display: none !important;
+}
+
+.form-box.signup.is-visible {
+  display: block !important;
+}
+
+.form-box.login.is-hidden {
   display: none !important;
 }
 
@@ -375,4 +383,75 @@ table td strong {
     color: #ffffff;
     border-color: #1b4332;
     transform: translateY(-1px);
+}
+
+/* Request form */
+.nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.nav-links a { margin-left: 15px; text-decoration: none; font-weight: bold; color: #0066cc; }
+.nav-links a:hover { text-decoration: underline; }
+.nav-links .return-link { display: inline-block; padding: 9px 12px; border-radius: 4px; background: #006b3c; color: white; }
+.nav-links .return-link:hover { background: #00532f; text-decoration: none; }
+
+/* Student dashboard */
+.student-page { font-family: Arial, sans-serif; margin: 0; max-width: none; padding: 0; background: #f4f6f8; }
+.header { background: #006b3c; color: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; }
+.header h2 { margin: 0; }
+.logout { color: white; text-decoration: none; background: #b91c1c; padding: 10px 16px; border-radius: 5px; }
+.dashboard { max-width: 1000px; margin: 40px auto; padding: 20px; }
+.cards { display: flex; gap: 20px; flex-wrap: wrap; }
+.card { flex: 1; min-width: 230px; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+.card a { display: inline-block; margin-top: 15px; padding: 12px 18px; background: #006b3c; color: white; text-decoration: none; border-radius: 5px; }
+
+/* Admin dashboard */
+.table-wrap { overflow-x: auto; }
+.request-table { min-width: 950px; }
+.request-form { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
+.request-form select, .request-form input, .request-form button, .request-area { width: 100%; padding: 6px; }
+.success-alert { color: #155724; background-color: #d4edda; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+.empty-requests { text-align: center; }
+
+/* Login and registration messages */
+.login-message { padding: 8px; border-radius: 4px; font-size: .85rem; margin-bottom: 10px; }
+.login-error { color: #dc2626; background: #fee2e2; }
+.login-success { color: #166534; background: #dcfce7; }
+
+/* Request tracker */
+.tracker-shell { max-width: 1000px; margin: 0 auto; }
+.tracker-shell .tracker-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 30px; }
+.tracker-shell .tracker-header h1 { color: var(--feu-green); font-size: 1.8rem; margin: 0 0 5px; }
+.tracker-shell .tracker-header p { color: #52635b; }
+.tracker-shell .tracker-nav { display: flex; flex-wrap: wrap; gap: 10px; }
+.tracker-shell .tracker-nav a { display: inline-block; padding: 10px 14px; border-radius: 5px; background: var(--feu-green); color: white; text-decoration: none; font-weight: 600; }
+.tracker-shell .tracker-nav a:hover { background: var(--feu-green-dark); }
+.tracker-shell .lookup-panel { margin-bottom: 28px; }
+.tracker-shell .lookup-panel label { display: block; margin-bottom: 8px; font-weight: 600; }
+.tracker-shell .lookup-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
+.tracker-shell .lookup-row input { min-width: 0; width: 100%; padding: 12px 14px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem; }
+.tracker-shell .lookup-row button { border: 0; border-radius: 5px; padding: 12px 18px; background: var(--feu-green); color: white; font-size: 1rem; font-weight: 700; cursor: pointer; }
+.tracker-shell .lookup-row button:hover { background: var(--feu-green-dark); }
+.tracker-shell .error-message { margin: -12px 0 24px; color: #b42318; font-weight: 600; }
+.tracker-shell .result-panel { margin: 28px 0; padding: 22px; background: white; border-left: 5px solid var(--feu-gold); border-radius: 6px; box-shadow: 0 3px 10px rgba(18, 33, 25, .08); }
+.tracker-shell .result-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
+.tracker-shell .result-heading h2 { margin: 0; border: 0; padding: 0; }
+.tracker-shell .status-pill { display: inline-block; padding: 7px 11px; border-radius: 20px; background: #fff2cc; color: #594100; font-size: .9rem; font-weight: 700; }
+.tracker-shell .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.tracker-shell .detail-item { padding-top: 12px; border-top: 1px solid #e5ebe7; overflow-wrap: anywhere; }
+.tracker-shell .detail-item dt { margin-bottom: 4px; color: #52635b; font-size: .85rem; }
+.tracker-shell .detail-item dd { margin: 0; font-weight: 600; }
+.tracker-shell .history-section { margin-top: 36px; }
+.tracker-shell .history-section h2 { margin-bottom: 16px; }
+.tracker-shell .table-scroll { overflow-x: auto; background: white; border-radius: 6px; box-shadow: 0 3px 10px rgba(18, 33, 25, .06); }
+.tracker-shell .request-table { width: 100%; border-collapse: collapse; text-align: left; }
+.tracker-shell .request-table th, .tracker-shell .request-table td { padding: 13px 15px; border-bottom: 1px solid #e5ebe7; vertical-align: middle; }
+.tracker-shell .request-table th { background: #edf3ef; color: var(--feu-green-dark); font-size: .85rem; }
+.tracker-shell .request-table tr:last-child td { border-bottom: 0; }
+.tracker-shell .reference-button { border: 0; padding: 0; background: none; color: #005b9a; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; overflow-wrap: anywhere; text-align: left; }
+.tracker-shell .empty-state { padding: 20px; background: white; color: #52635b; border-radius: 6px; }
+
+@media (max-width: 640px) {
+    .tracker-shell .tracker-header { align-items: flex-start; flex-direction: column; }
+    .tracker-shell .lookup-row { grid-template-columns: 1fr; }
+    .tracker-shell .detail-grid { grid-template-columns: 1fr; gap: 12px; }
+    .tracker-shell .result-heading { flex-direction: column; }
+    .tracker-shell .request-table th, .tracker-shell .request-table td { padding: 10px; }
 }

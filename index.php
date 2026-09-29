@@ -138,11 +138,11 @@ $con->close();
         <div class="title">Tracking system</div>
 
         <?php if (!empty($error)): ?>
-            <p style="color: #dc2626; background: #fee2e2; padding: 8px; border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px;"><?php echo htmlspecialchars($error); ?></p>
+            <p class="login-message login-error"><?php echo htmlspecialchars($error); ?></p>
         <?php endif; ?>
 
         <?php if (!empty($success)): ?>
-            <p style="color: #166534; background: #dcfce7; padding: 8px; border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px;"><?php echo htmlspecialchars($success); ?></p>
+            <p class="login-message login-success"><?php echo htmlspecialchars($success); ?></p>
         <?php endif; ?>
 
         <form action="index.php" method="POST">
@@ -166,7 +166,7 @@ $con->close();
       </div>
 
       <!-- SIGNUP FORM -->
-      <div class="form-box signup" style="display: none;">
+      <div class="form-box signup">
         <div class="title">Sign Up</div>
 
         <!-- Updated action to index.php -->
@@ -209,14 +209,14 @@ $con->close();
 
     document.getElementById("showSignup").addEventListener("click", function(e) {
       e.preventDefault();
-      loginForm.style.display = "none";
-      signupForm.style.display = "block";
+      loginForm.classList.add("is-hidden");
+      signupForm.classList.add("is-visible");
     });
 
     document.getElementById("showLogin").addEventListener("click", function(e) {
       e.preventDefault();
-      signupForm.style.display = "none";
-      loginForm.style.display = "block";
+      signupForm.classList.remove("is-visible");
+      loginForm.classList.remove("is-hidden");
     });
   </script>
 
