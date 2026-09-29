@@ -66,6 +66,8 @@ $con->close();
         .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .nav-links a { margin-left: 15px; text-decoration: none; font-weight: bold; color: #0066cc; }
         .nav-links a:hover { text-decoration: underline; }
+        .nav-links .return-link { display: inline-block; padding: 9px 12px; border-radius: 4px; background: #006b3c; color: white; }
+        .nav-links .return-link:hover { background: #00532f; text-decoration: none; }
     </style>
 </head>
 <body>
@@ -73,6 +75,7 @@ $con->close();
     <div class="nav-header">
         <h2>Student Document Request Form</h2>
         <div class="nav-links">
+            <a class="return-link" href="student_dashboard.php">Return to Student Dashboard</a>
             <a href="track.php">🔍 Track Status</a>
             <!-- Updated to index.php since login page was renamed -->
             <a href="index.php">🔐 Staff/Student Login</a>
