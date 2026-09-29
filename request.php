@@ -77,8 +77,7 @@ $con->close();
         <div class="nav-links">
             <a class="return-link" href="student_dashboard.php">Return to Student Dashboard</a>
             <a href="track.php">🔍 Track Status</a>
-            <!-- Updated to index.php since login page was renamed -->
-            <a href="index.php">🔐 Staff/Student Login</a>
+            <a href="index.php">🔐 Logout</a>
         </div>
     </div>
     
