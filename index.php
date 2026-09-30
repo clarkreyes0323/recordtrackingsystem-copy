@@ -186,7 +186,7 @@ $con->close();
             <input type="password" name="password" placeholder="Create a password" required>
           </div>
 
-          <button type="submit" name="btnSignup">Signup</button>
+          <button type="submit" name="btnSignup">Sign Up</button>
 
           <p class="signup-text">
             Already have an account?
