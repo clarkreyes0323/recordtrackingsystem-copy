@@ -72,7 +72,7 @@ if (
 
     if (
         $request_id &&
-        in_array($status, $allowed_statuses) &&
+        in_array($status, $allowed_statuses, true) &&
         $claiming_area !== ''
     ) {
 
@@ -87,25 +87,29 @@ if (
         );
 
 
-        $stmt->bind_param(
-            "ssi",
-            $enc_status,
-            $enc_area,
-            $request_id
-        );
+        if ($stmt) {
 
-
-        if ($stmt->execute()) {
-
-            header(
-                "Location: admin_dashboard.php?success=1"
+            $stmt->bind_param(
+                "ssi",
+                $enc_status,
+                $enc_area,
+                $request_id
             );
 
-            exit;
+
+            if ($stmt->execute()) {
+
+                $stmt->close();
+
+                header(
+                    "Location: admin_dashboard.php?success=1"
+                );
+
+                exit;
+            }
+
+            $stmt->close();
         }
-
-
-        $stmt->close();
     }
 }
 
@@ -137,6 +141,8 @@ if ($result = $con->query($query)) {
 
         $requests[] = $row;
     }
+
+    $result->free();
 }
 
 
@@ -162,136 +168,18 @@ $con->close();
     </title>
 
 
+    <!-- Main stylesheet -->
     <link
         rel="stylesheet"
         href="style.css"
     >
 
 
-    <style>
-
-        /* =========================
-           SEARCH FILTER
-           ========================= */
-
-        .admin-search {
-
-            background: #ffffff;
-
-            border-top: 6px solid #00664f;
-
-            border-radius: 10px;
-
-            padding: 30px;
-
-            margin: 25px 0 40px;
-
-            box-shadow:
-                0 4px 12px
-                rgba(0, 0, 0, 0.08);
-        }
-
-
-        /* =========================
-           REMOVE INNER FORM BOX
-           ========================= */
-
-        .admin-search form {
-
-            background: transparent !important;
-
-            border: none !important;
-
-            border-top: none !important;
-
-            border-radius: 0 !important;
-
-            padding: 0 !important;
-
-            margin: 0 !important;
-
-            box-shadow: none !important;
-        }
-
-
-        /* =========================
-           SEARCH INPUT
-           ========================= */
-
-        .admin-search input {
-
-            width: 100%;
-
-            height: 45px;
-
-            box-sizing: border-box;
-
-            padding: 10px 12px;
-
-            margin-bottom: 15px;
-
-            font-size: 15px;
-
-            border: 1px solid #ccc;
-
-            border-radius: 5px;
-
-            background: #ffffff;
-        }
-
-
-        /* =========================
-           SEARCH BUTTON
-           ========================= */
-
-        .admin-search button {
-
-            width: 100%;
-
-            height: 42px;
-
-            border: none;
-
-            border-radius: 5px;
-
-            background: #00664f;
-
-            color: #ffffff;
-
-            font-weight: bold;
-
-            cursor: pointer;
-        }
-
-
-        .admin-search button:hover {
-
-            background: #00533f;
-        }
-
-
-        /* =========================
-           CLEAR SEARCH
-           ========================= */
-
-        .clear-search {
-
-            display: inline-block;
-
-            margin-top: 10px;
-
-            color: #00664f;
-
-            text-decoration: none;
-        }
-
-
-        .clear-search:hover {
-
-            text-decoration: underline;
-        }
-
-    </style>
+    <!-- Admin dashboard stylesheet -->
+    <link
+        rel="stylesheet"
+        href="admin_dashboard.css"
+    >
 
 </head>
 
@@ -380,12 +268,7 @@ $con->close();
 
     <div class="table-wrap">
 
-        <table
-            class="request-table"
-            border="1"
-            cellpadding="8"
-            cellspacing="0"
-        >
+        <table class="request-table">
 
             <thead>
 
@@ -451,10 +334,12 @@ $con->close();
                 <?php else: ?>
 
 
-                    <?php foreach ($requests as $request): ?>
+                    <?php
 
+                    $displayed_requests = 0;
 
-                        <?php
+                    foreach ($requests as $request):
+
 
                         /* =========================
                            DECRYPT DATA
@@ -523,8 +408,7 @@ $con->close();
                         $status =
                             $so->decrypt(
                                 $request['status']
-                            )
-                            ?: 'Pending';
+                            ) ?: 'Pending';
 
 
                         /* =========================
@@ -556,6 +440,9 @@ $con->close();
                         }
 
 
+                        $displayed_requests++;
+
+
                         /* =========================
                            FORM ID
                            ========================= */
@@ -564,15 +451,13 @@ $con->close();
                             'request-update-' .
                             (int)$request['id'];
 
-                        ?>
+                    ?>
 
 
                         <tr>
 
 
-                            <!-- =====================
-                                 REF NO.
-                                 ===================== -->
+                            <!-- REF NO. -->
 
                             <td>
 
@@ -587,9 +472,7 @@ $con->close();
                             </td>
 
 
-                            <!-- =====================
-                                 STUDENT NO.
-                                 ===================== -->
+                            <!-- STUDENT NO. -->
 
                             <td>
 
@@ -600,9 +483,7 @@ $con->close();
                             </td>
 
 
-                            <!-- =====================
-                                 STUDENT NAME
-                                 ===================== -->
+                            <!-- STUDENT NAME -->
 
                             <td>
 
@@ -613,9 +494,7 @@ $con->close();
                             </td>
 
 
-                            <!-- =====================
-                                 PROGRAM
-                                 ===================== -->
+                            <!-- PROGRAM -->
 
                             <td>
 
@@ -626,9 +505,7 @@ $con->close();
                             </td>
 
 
-                            <!-- =====================
-                                 FILE TYPE
-                                 ===================== -->
+                            <!-- FILE TYPE -->
 
                             <td>
 
@@ -639,9 +516,7 @@ $con->close();
                             </td>
 
 
-                            <!-- =====================
-                                 PURPOSE
-                                 ===================== -->
+                            <!-- PURPOSE -->
 
                             <td>
 
@@ -652,9 +527,7 @@ $con->close();
                             </td>
 
 
-                            <!-- =====================
-                                 CLAIMING AREA
-                                 ===================== -->
+                            <!-- CLAIMING AREA -->
 
                             <td>
 
@@ -673,9 +546,7 @@ $con->close();
                             </td>
 
 
-                            <!-- =====================
-                                 STATUS
-                                 ===================== -->
+                            <!-- STATUS -->
 
                             <td>
 
@@ -685,7 +556,6 @@ $con->close();
                                     method="POST"
                                     action="admin_dashboard.php"
                                 >
-
 
                                     <input
                                         type="hidden"
@@ -702,19 +572,12 @@ $con->close();
                                         <?php
 
                                         $options = [
-
                                             'Pending',
-
                                             'Processing',
-
                                             'Approved',
-
                                             'Ready for Claiming',
-
                                             'Completed',
-
                                             'Rejected'
-
                                         ];
 
 
@@ -752,16 +615,32 @@ $con->close();
 
                                     </button>
 
-
                                 </form>
 
                             </td>
-
 
                         </tr>
 
 
                     <?php endforeach; ?>
+
+
+                    <?php if ($displayed_requests === 0): ?>
+
+                        <tr>
+
+                            <td
+                                class="empty-requests"
+                                colspan="8"
+                            >
+
+                                No requests match your search.
+
+                            </td>
+
+                        </tr>
+
+                    <?php endif; ?>
 
 
                 <?php endif; ?>
