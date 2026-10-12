@@ -24,27 +24,32 @@ $so = new SystemOperators();
 
 $success_message = '';
 $requests = [];
-$tabs = [
-    'all' => 'All Requests',
-    'pending' => 'Pending',
-    'processing' => 'Processing',
-    'approved' => 'Approved'
-];
-$current_tab = $_GET['tab'] ?? $_POST['tab'] ?? 'all';
-if (!array_key_exists($current_tab, $tabs)) {
-    $current_tab = 'all';
-}
-$tab_statuses = [
-    'pending' => 'Pending',
-    'processing' => 'Processing',
-    'approved' => 'Approved'
-];
 
+// Handle update form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnUpdate'])) {
+    $request_id = $_POST['request_id'] ?? '';
+	$status = trim(filter_input(INPUT_POST, 'status', FILTER_UNSAFE_RAW) ?? '');
+	$claiming_area = trim(filter_input(INPUT_POST, 'claiming_area', FILTER_UNSAFE_RAW) ?? '');
+
+	$allowed_statuses = ['Pending', 'Processing', 'Approved', 'Ready for Claiming', 'Completed', 'Rejected'];
+
+    if ($request_id && in_array($status, $allowed_statuses) && $claiming_area !== '') {
+		$enc_status = $so->encrypt($status);
+		$enc_area = $so->encrypt($claiming_area);
+
+		$stmt = $con->prepare("UPDATE document_requests SET status = ?, claiming_area = ? WHERE id = ?");
+        $stmt->bind_param("ssi", $enc_status, $enc_area, $request_id);
+        
+        if ($stmt->execute()) {
+            // Post-Redirect-Get pattern to prevent form resubmission on refresh
+            $active_tab = $_GET['tab'] ?? 'all';
+            header("Location: admin_dashboard.php?success=1");
+            exit;
 /* =========================
    SEARCH FILTER
    ========================= */
 
-$search = trim($_GET['search'] ?? $_POST['search'] ?? '');
+$search = trim($_GET['search'] ?? '');
 
 /* =========================
    UPDATE REQUEST
@@ -148,14 +153,11 @@ if (
                 }
 
                 $con->commit();
-                $redirect_params = [
-                    'success' => 1,
-                    'tab' => $current_tab
-                ];
+                $redirect_url = 'admin_dashboard.php?success=1';
                 if ($search !== '') {
-                    $redirect_params['search'] = $search;
+                    $redirect_url .= '&search=' . urlencode($search);
                 }
-                header('Location: admin_dashboard.php?' . http_build_query($redirect_params));
+                header("Location: $redirect_url");
                 exit;
             } catch (Throwable $error) {
                 $con->rollback();
@@ -175,6 +177,10 @@ if (isset($_GET['success'])) {
         'Request updated successfully.';
 }
 
+$current_tab = $_GET['tab'] ?? 'all';
+
+// Fetch all document requests
+$query = "SELECT * FROM document_requests ORDER BY id DESC";
 /* =========================
    GET REQUESTS
    ========================= */
@@ -186,32 +192,25 @@ $query =
 
 if ($result = $con->query($query)) {
     while ($row = $result->fetch_assoc()) {
+        $row['status'] = $so->decrypt($row['status']) ?: 'Pending';
         $requests[] = $row;
     }
 
     $result->free();
 }
 
-$tab_counts = array_fill_keys(array_keys($tabs), 0);
-$status_counts = array_fill_keys([
-    'Pending',
-    'Processing',
-    'Approved',
-    'Ready for Claiming',
-    'Completed',
-    'Rejected'
-], 0);
-foreach ($requests as $request) {
-    $request_status = $so->decrypt($request['status']) ?: 'Pending';
-    $tab_counts['all']++;
-    if (isset($status_counts[$request_status])) {
-        $status_counts[$request_status]++;
-    }
+$con->close();
 
-    foreach ($tab_statuses as $tab_key => $tab_status) {
-        if ($request_status === $tab_status) {
-            $tab_counts[$tab_key]++;
-        }
+$filtered_requests = [];
+foreach ($requests as $request) {
+    if ($current_tab === 'all') {
+        $filtered_requests[] = $request;
+    } elseif ($current_tab === 'pending' && $request['status'] === 'Pending') {
+        $filtered_requests[] = $request;
+    } elseif ($current_tab === 'processing' && $request['status'] === 'Processing') {
+        $filtered_requests[] = $request;
+    } elseif ($current_tab === 'approved' && $request['status'] === 'Approved') {
+        $filtered_requests[] = $request;
     }
 }
 
@@ -234,64 +233,34 @@ foreach ($requests as $request) {
         Admin Dashboard | Document Requests
     </title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
-    <link rel="stylesheet" href="style.css?v=<?= filemtime(__DIR__ . '/style.css') ?>">
+
+    <!-- Main stylesheet -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Admin dashboard stylesheet -->
+    <link
+        rel="stylesheet"
+        href="admin_dashboard.css"
+    >
+
 </head>
 
-<body class="admin-dashboard-page">
-    <header class="admin-topbar">
-        <div class="admin-topbar-inner">
-            <a class="admin-brand" href="admin_dashboard.php" aria-label="FEU Roosevelt records dashboard">
-                <span class="admin-brand-mark" aria-hidden="true">FR</span>
-                <span class="admin-brand-copy">
-                    <small>FEU ROOSEVELT</small>
-                    <strong>Records Office</strong>
-                </span>
-            </a>
-            <div class="admin-topbar-actions">
-                <?php include("./helpers/notification_center.php"); ?>
-                <a href="logout.php" class="admin-logout">Sign out</a>
-            </div>
+<body>
+    <!-- =========================
+         ADMIN DASHBOARD
+         ========================= -->
+
+    <div class="dashboard-header">
+        <div>
+            <h2>Admin Dashboard</h2>
+            <p>Review submitted document requests and update their status and claiming area.</p>
         </div>
-    </header>
+        <div class="dashboard-actions">
+            <?php include("./helpers/notification_center.php"); ?>
+            <a href="logout.php" class="logout">Log out</a>
+        </div>
+    </div>
 
-    <main class="admin-main container-fluid">
-        <section class="admin-overview" aria-labelledby="admin-page-title">
-            <div>
-                <p class="admin-eyebrow">Records operations</p>
-                <h1 id="admin-page-title">Request overview</h1>
-                <p>Review requests, update their status, and coordinate claiming details.</p>
-            </div>
-            <time datetime="<?= date('Y-m-d') ?>"><?= date('l, F j, Y') ?></time>
-        </section>
-
-        <section class="admin-metrics" aria-label="Request totals">
-            <div class="admin-metric">
-                <span>Total requests</span>
-                <strong><?= $tab_counts['all'] ?></strong>
-            </div>
-            <div class="admin-metric metric-pending">
-                <span>Pending</span>
-                <strong><?= $status_counts['Pending'] ?></strong>
-            </div>
-            <div class="admin-metric metric-processing">
-                <span>In progress</span>
-                <strong><?= $status_counts['Processing'] + $status_counts['Approved'] ?></strong>
-            </div>
-            <div class="admin-metric metric-ready">
-                <span>Approved</span>
-                <strong><?= $status_counts['Approved'] ?></strong>
-            </div>
-        </section>
-
-        <section class="admin-queue" aria-labelledby="request-queue-title">
-            <div class="admin-queue-heading">
-                <div>
-                    <p class="admin-eyebrow">Manage submissions</p>
-                    <h2 id="request-queue-title">Request queue</h2>
-                </div>
-                <span><?= $tab_counts['all'] ?> total</span>
-            </div>
 
     <!-- =========================
          SEARCH FILTER
@@ -310,7 +279,6 @@ foreach ($requests as $request) {
                     placeholder="Search requests..."
                     value="<?= htmlspecialchars($search) ?>"
                 >
-                <input type="hidden" name="tab" value="<?= htmlspecialchars($current_tab) ?>">
 
                 <button type="submit">
                     SEARCH
@@ -319,7 +287,7 @@ foreach ($requests as $request) {
 
             <?php if ($search !== ''): ?>
                 <a
-                    href="admin_dashboard.php?<?= http_build_query(['tab' => $current_tab]) ?>"
+                    href="admin_dashboard.php"
                     class="clear-search"
                 >
                     Clear Search
@@ -327,22 +295,6 @@ foreach ($requests as $request) {
             <?php endif; ?>
         </form>
     </div>
-
-    <nav class="request-tabs" aria-label="Filter document requests">
-        <?php foreach ($tabs as $tab_key => $tab_label): ?>
-            <?php
-            $tab_url = ['tab' => $tab_key];
-            if ($search !== '') {
-                $tab_url['search'] = $search;
-            }
-            ?>
-            <a
-                class="request-tab<?= $current_tab === $tab_key ? ' active' : '' ?>"
-                href="admin_dashboard.php?<?= htmlspecialchars(http_build_query($tab_url), ENT_QUOTES, 'UTF-8') ?>"
-                <?= $current_tab === $tab_key ? 'aria-current="page"' : '' ?>
-            ><?= htmlspecialchars($tab_label, ENT_QUOTES, 'UTF-8') ?> (<?= $tab_counts[$tab_key] ?>)</a>
-        <?php endforeach; ?>
-    </nav>
 
 
     <!-- =========================
@@ -359,13 +311,27 @@ foreach ($requests as $request) {
 
     <?php endif; ?>
 
+    <!-- Tab Navigation -->
+    <div class="tab-container">
+        <a href="admin_dashboard.php?tab=all" class="tab-btn <?= $current_tab === 'all' ? 'active' : '' ?>">All Requests</a>
+        <a href="admin_dashboard.php?tab=pending" class="tab-btn <?= $current_tab === 'pending' ? 'active' : '' ?>">Pending</a>
+        <a href="admin_dashboard.php?tab=processing" class="tab-btn <?= $current_tab === 'processing' ? 'active' : '' ?>">Processing</a>
+        <a href="admin_dashboard.php?tab=approved" class="tab-btn <?= $current_tab === 'approved' ? 'active' : '' ?>">Approved</a>
+    </div>
+
+    <h3>Submitted Requests (<?= count($filtered_requests) ?>)</h3>
+    
 
     <!-- =========================
          REQUESTS
          ========================= -->
 
+    <h3>
+        Submitted Requests
+    </h3>
+
     <div class="table-wrap">
-        <table class="table request-table admin-request-table">
+        <table class="request-table">
             <thead>
                 <tr>
                     <th>
@@ -403,6 +369,20 @@ foreach ($requests as $request) {
             </thead>
 
             <tbody>
+                <?php if (empty($filtered_requests)): ?>
+                    <tr><td class="empty-requests" colspan="8">No document requests submitted yet.</td></tr>
+                <?php else: ?>
+                    <?php foreach ($filtered_requests as $request): ?>
+                        <?php
+                            // Decrypt fields up front for cleaner HTML rendering
+                            $status = $so->decrypt($request['status']) ?: 'Pending';
+                            $claiming_area = $so->decrypt($request['claiming_area'] ?? '') ?: '';
+                            $form_id = 'request-update-' . (int)$request['id'];
+                            $first = $so->decrypt($request['firstname']);
+                            $middle = $so->decrypt($request['middlename']) ?: '';
+                            $last = $so->decrypt($request['lastname']);
+                            $full_name = trim("$first $middle $last");
+                        ?>
                 <?php if (empty($requests)): ?>
                     <tr>
                         <td
@@ -417,7 +397,6 @@ foreach ($requests as $request) {
                     <?php
 
                     $displayed_requests = 0;
-                    $tab_filtered_count = 0;
 
                     foreach ($requests as $request):
                         /* =========================
@@ -489,14 +468,6 @@ foreach ($requests as $request) {
                                 $request['status']
                             ) ?: 'Pending';
 
-                        if (
-                            $current_tab !== 'all' &&
-                            $status !== $tab_statuses[$current_tab]
-                        ) {
-                            continue;
-                        }
-                        $tab_filtered_count++;
-
 
                         /* =========================
                            SEARCH FILTER
@@ -547,9 +518,6 @@ foreach ($requests as $request) {
                                         $file_no
                                     ) ?>
                                 </strong>
-                                <time class="request-date" datetime="<?= htmlspecialchars($request['created_at'], ENT_QUOTES, 'UTF-8') ?>">
-                                    <?= htmlspecialchars(date('Y/m/d', strtotime($request['created_at'])), ENT_QUOTES, 'UTF-8') ?>
-                                </time>
                             </td>
 
                             <!-- STUDENT NO. -->
@@ -588,7 +556,7 @@ foreach ($requests as $request) {
                             </td>
 
                             <!-- CLAIMING AREA -->
-                            <td class="claiming-area-cell">
+                            <td>
                                 <input
                                     class="request-area"
                                     type="text"
@@ -615,8 +583,6 @@ foreach ($requests as $request) {
                                         name="request_id"
                                         value="<?= (int)$request['id'] ?>"
                                     >
-                                    <input type="hidden" name="tab" value="<?= htmlspecialchars($current_tab) ?>">
-                                    <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
 
                                     <select
                                         name="status"
@@ -674,9 +640,7 @@ foreach ($requests as $request) {
                                 class="empty-requests"
                                 colspan="8"
                             >
-                                <?= $search !== ''
-                                    ? 'No requests match your search.'
-                                    : 'No requests in this tab.' ?>
+                                No requests match your search.
                             </td>
                         </tr>
                     <?php endif; ?>

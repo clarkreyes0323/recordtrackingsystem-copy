@@ -137,6 +137,7 @@ $con->close();
       <div class="form-box login">
         <div class="title">Document Tracking</div>
 
+
         <?php if (!empty($error)): ?>
             <p class="login-message login-error"><?php echo htmlspecialchars($error); ?></p>
         <?php endif; ?>
