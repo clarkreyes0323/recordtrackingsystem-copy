@@ -41,6 +41,29 @@ $tab_statuses = [
 ];
 
 /* =========================
+   STUDENT CLASSIFICATION FUNCTIONS
+   ========================= */
+
+function getStudentClassification ($year_level) {
+    $year_level = strtolower(trim($year_level));
+    if (in_array($year_level, ['nursery', 'kindergarten 1', 'kindergarten 2'], true)) {
+        return ['Pre-school', 'name' => 'PRE', 'bg_color' => '#e0f7fa', 'border_color' => '#f2fd5a', 'dot_color' => '#f5dc00', 'text_color' => '#a37000'];
+    } elseif (in_array($year_level, ['grade 1', 'grade 2', 'grade 3', 'grade 4', 'grade 5', 'grade 6'], true)) {
+        return ['Grade School', 'name' => 'GS', 'bg_color' => '#f1f8e9', 'border_color' => '#33691e', 'dot_color' => '#0f3600', 'text_color' => '#33691e'];
+    } elseif (in_array($year_level, ['grade 7', 'grade 8', 'grade 9', 'grade 10'], true)) {
+        return ['Junior High School', 'name' => 'JHS', 'bg_color' => '#fff3e0', 'border_color' => '#e65100', 'dot_color' => '#702700', 'text_color' => '#e65100'];
+    } elseif (in_array($year_level, ['grade 11', 'grade 12'], true)) {
+        return ['Senior High School', 'name' => 'SHS', 'bg_color' => '#fce4ec', 'border_color' => '#e9007c', 'dot_color' => '#880e4f', 'text_color' => '#880e4f'];
+    } elseif (in_array($year_level, ['1st year', '2nd year', '3rd year', '4th year'], true)) {
+        return ['Tertiary Education', 'name' => 'TED', 'bg_color' => '#e8f5e9', 'border_color' => '#a5a5a5', 'dot_color' => '#3d3d3d', 'text_color' => '#2e7d32'];
+    } elseif (in_array($year_level, ['Alumni'], true)) {
+        return ['Alumni', 'name' => 'AM', 'bg_color' => '#f5f5f5', 'border_color' => '#b135e2', 'dot_color' => '#420034', 'text_color' => '#f1f1f1'];
+    } else {
+        return ['Unknown', 'name' => 'N/A', 'bg_color' => '#ffffff', 'border_color' => '#030303', 'dot_color' => '#ffffff', 'text_color' => '#0c0c0c'];
+    }
+}
+
+/* =========================
    SEARCH FILTER
    ========================= */
 
@@ -90,7 +113,7 @@ if (
     ) {
 
         $lookup = $con->prepare(
-            "SELECT user_id, email, file_no, status, claiming_area
+            "SELECT id, email, file_no, status, claiming_area
              FROM document_requests
              WHERE id = ?"
         );
@@ -381,6 +404,10 @@ foreach ($requests as $request) {
                     </th>
 
                     <th>
+                        Year Level
+                    </th>
+
+                    <th>
                         Program
                     </th>
 
@@ -460,6 +487,12 @@ foreach ($requests as $request) {
                             );
 
 
+                        $year_level =
+                            $so->decrypt(
+                                $request['year_level']
+                            );
+
+
                         $program =
                             $so->decrypt(
                                 $request['program']
@@ -508,6 +541,7 @@ foreach ($requests as $request) {
                                 "$file_no
                                 $student_no
                                 $full_name
+                                $year_level
                                 $program
                                 $doc_type
                                 $purpose
@@ -561,8 +595,30 @@ foreach ($requests as $request) {
 
                             <!-- STUDENT NAME -->
                             <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span><?= htmlspecialchars(
+                                        $full_name
+                                    ) ?></span>
+
+                                    <?php
+                                    // Get the student classification based on the year level
+                                    $classif = getStudentClassification($year_level);
+
+                                    if (!empty($classif)):
+                                    ?>
+                                        <span class="d-inline-flex align-items-center px-2 py-1 rounded-pill text-xs font-bold" 
+                                        style="background-color: <?= $classif['bg_color'] ?>; border: 1px solid <?= $classif['border_color'] ?>; border-radius: 4px; font-size: 0.85rem;">
+                                        <span class="rounded-circle me-1" style="width: 6px; height: 6px; background-color: <?= $classif['dot_color'] ?>; display: inline-block;"></span>
+                                        <?= htmlspecialchars($classif['name']) ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+
+                            <!-- YEAR LEVEL -->
+                            <td>
                                 <?= htmlspecialchars(
-                                    $full_name
+                                    $year_level
                                 ) ?>
                             </td>
 
@@ -572,6 +628,7 @@ foreach ($requests as $request) {
                                     $program
                                 ) ?>
                             </td>
+
 
                             <!-- FILE TYPE -->
                             <td>
