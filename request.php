@@ -13,10 +13,14 @@ if (
 
 include("./connection/config.php");
 include("./helpers/SystemOperators.php");
+require_once("./helpers/NotificationService.php");
 
-$con = connection();$so  = new SystemOperators();
+$con = connection();
+$so = new SystemOperators();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw_file_no = "DOC-" . date("Ymd") . "-" . strtoupper($so->randomStringGenerator(8));$file_no     = $so->encrypt($raw_file_no);
+
+    $user_id = (int)$_SESSION['user_id'];
 
     $student_no  =$so->encrypt(trim(filter_input(INPUT_POST, 'student_no', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
     $fname       =$so->encrypt(trim(filter_input(INPUT_POST, 'firstname', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
@@ -31,21 +35,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw
     $status        =$so->encrypt('Pending');
     $claiming_area =$so->encrypt('Pending Registrar Assignment');
 
-    $insert_query = "INSERT INTO `document_requests` 
-                    (`file_no`, `student_no`, `firstname`, `lastname`, `middlename`, `year_level`, `program`, `email`, `doc_type`, `purpose`, `claiming_area`, `status`) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    $insert_query = "INSERT INTO `document_requests`
+                    (`user_id`, `file_no`, `student_no`, `firstname`, `lastname`, `middlename`, `year_level`, `program`, `email`, `doc_type`, `purpose`, `claiming_area`, `status`)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     
-    $insert_stmt =$con->prepare($insert_query);$insert_stmt->bind_param('ssssssssssss', $file_no,$student_no, $fname,$lname, $mname,$year_level, $program,$email, $doc_type,$purpose, $claiming_area,$status);
+    $insert_stmt = $con->prepare($insert_query);
+    $insert_stmt->bind_param('issssssssssss', $user_id, $file_no, $student_no, $fname, $lname, $mname, $year_level, $program, $email, $doc_type, $purpose, $claiming_area, $status);
     
     try {
+        $con->begin_transaction();
         if ($insert_stmt->execute()) {
+            $request_id = (int)$con->insert_id;
+            $admin_stmt = $con->prepare("SELECT id FROM users WHERE role = 'admin'");
+            $admin_stmt->execute();
+            $admin_result = $admin_stmt->get_result();
+            while ($admin = $admin_result->fetch_assoc()) {
+                addNotification(
+                    $con,
+                    (int)$admin['id'],
+                    "New document request $raw_file_no was submitted.",
+                    $request_id
+                );
+            }
+            $admin_stmt->close();
+            $con->commit();
+            $insert_stmt->close();
             echo "<script> 
                     alert('Request submitted successfully!\\nYour Reference/File No. is: " . $raw_file_no . "\\nPlease save this number for tracking.');
                     window.location='track.php';
                   </script>";
             exit();
         }
+        $con->rollback();
     } catch(mysqli_sql_exception $e) {
+        $con->rollback();
         echo "<script>alert('Database Error: " . addslashes($e->getMessage()) . "');</script>";
     }
     
