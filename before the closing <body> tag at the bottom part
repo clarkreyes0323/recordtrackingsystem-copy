@@ -1,0 +1,38 @@
+<script>
+document.querySelectorAll('.request-form').forEach(function (form) {
+    const row = form.closest('tr');
+    const indicator = form.querySelector('.save-indicator');
+    const label = form.querySelector('.save-indicator-label');
+
+    const statusSelect = form.querySelector(
+        'select[name="status"]'
+    );
+
+    const claimingArea = row
+        ? row.querySelector('.request-area')
+        : null;
+
+    if (!indicator || !label) return;
+
+    function markChanged() {
+        indicator.classList.remove('is-saved');
+        indicator.classList.add('is-changed');
+
+        indicator.title = 'Changed — click Save Update';
+        indicator.setAttribute(
+            'aria-label',
+            'Changed — click Save Update'
+        );
+
+        label.textContent = 'Unsaved changes';
+    }
+
+    if (statusSelect) {
+        statusSelect.addEventListener('change', markChanged);
+    }
+
+    if (claimingArea) {
+        claimingArea.addEventListener('input', markChanged);
+    }
+});
+</script>
