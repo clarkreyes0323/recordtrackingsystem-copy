@@ -1,4 +1,3 @@
-
 <?php
 
 session_start();
@@ -150,9 +149,10 @@ if (
 
                 $con->commit();
                 $redirect_params = [
-                    'success' => 1,
-                    'tab' => $current_tab
-                ];
+    'success' => 1,
+    'saved_id' => $request_id,
+    'tab' => $current_tab
+];
                 if ($search !== '') {
                     $redirect_params['search'] = $search;
                 }
@@ -170,6 +170,10 @@ if (
 /* =========================
    SUCCESS MESSAGE
    ========================= */
+
+$saved_request_id = isset($_GET['saved_id'])
+    ? (int) $_GET['saved_id']
+    : 0;
 
 if (isset($_GET['success'])) {
     $success_message =
@@ -238,6 +242,39 @@ foreach ($requests as $request) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="style.css?v=<?= filemtime(__DIR__ . '/style.css') ?>">
 </head>
+
+<style>
+    /* Save Update Indicator */
+    .save-indicator {
+        display: inline-block;
+        width: 11px;
+        height: 11px;
+        flex: 0 0 11px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid #b8c2bd;
+        margin-right: 7px;
+        vertical-align: middle;
+        transition: background-color .15s ease,
+                    border-color .15s ease;
+    }
+
+    .save-indicator.is-saved,
+    .save-indicator.is-changed {
+        background: #16a34a;
+        border-color: #16a34a;
+    }
+
+    .save-indicator-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        margin-bottom: 7px;
+        font-size: 12px;
+        color: #53635b;
+    }
+</style>
 
 <body class="admin-dashboard-page">
     <header class="admin-topbar">
@@ -619,6 +656,31 @@ foreach ($requests as $request) {
                                     <input type="hidden" name="tab" value="<?= htmlspecialchars($current_tab) ?>">
                                     <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
 
+                                    <div class="save-indicator-row">
+
+    <span
+        class="save-indicator<?= (
+            is_int($saved_request_id) &&
+            $saved_request_id === (int)$request['id']
+        ) ? ' is-saved' : '' ?>"
+        data-saved="<?= (
+            is_int($saved_request_id) &&
+            $saved_request_id === (int)$request['id']
+        ) ? 'true' : 'false' ?>"
+        title="<?= (
+            is_int($saved_request_id) &&
+            $saved_request_id === (int)$request['id']
+        ) ? 'Saved successfully' : 'No unsaved changes' ?>"
+        role="status"
+    ></span>
+
+    <span class="save-indicator-label">
+        <?= (
+            is_int($saved_request_id) &&
+            $saved_request_id === (int)$request['id']
+        ) ? 'Saved' : 'Unchanged' ?>
+    </span>
+</div>
                                     <select
                                         name="status"
                                         required
@@ -687,6 +749,45 @@ foreach ($requests as $request) {
     </div>
         </section>
     </main>
+
+    <script>
+document.querySelectorAll('.request-form').forEach(function (form) {
+    const row = form.closest('tr');
+    const indicator = form.querySelector('.save-indicator');
+    const label = form.querySelector('.save-indicator-label');
+
+    const statusSelect = form.querySelector(
+        'select[name="status"]'
+    );
+
+    const claimingArea = row
+        ? row.querySelector('.request-area')
+        : null;
+
+    if (!indicator || !label) return;
+
+    function markChanged() {
+        indicator.classList.remove('is-saved');
+        indicator.classList.add('is-changed');
+
+        indicator.title = 'Changed — click Save Update';
+        indicator.setAttribute(
+            'aria-label',
+            'Changed — click Save Update'
+        );
+
+        label.textContent = 'Unsaved changes';
+    }
+
+    if (statusSelect) {
+        statusSelect.addEventListener('change', markChanged);
+    }
+
+    if (claimingArea) {
+        claimingArea.addEventListener('input', markChanged);
+    }
+});
+</script>
 </body>
 </html>
 
