@@ -74,7 +74,9 @@ if ($user && !empty($user['email'])) {
                 'doc_type'      => $decrypted_doc_type,
                 'purpose'       => $so->decrypt($row['purpose']) ?: '',
                 'claiming_area' => $so->decrypt($row['claiming_area']) ?: '',
-                'status'        => $decrypted_status
+                'status'        => $decrypted_status,
+                'year_level'    => $so->decrypt($row['year_level']) ?: '',
+                'created_at'    => $row['created_at']
             ];
         }
     }
@@ -123,9 +125,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnTrack']) && $searc
         <?php if ($error_message !== ''): ?>
             <p class="error-message" role="alert"><?php echo $error_message; ?></p>
         <?php endif; ?>
-
+        <!-- Print the request details if found -->
         <?php if ($request_data): ?>
-            <section class="result-panel" aria-labelledby="result-title">
+            <section class="result-panel printable-request" aria-labelledby="result-title">
+                <div class="print-document-heading">
+                    <p>FEU ROOSEVELT</p>
+                    <h2>Document Request Summary</h2>
+                </div>
+        <!-- Display the track search details -->
                 <div class="result-heading">
                     <div>
                         <h2 id="result-title"><?php echo htmlspecialchars($request_data['doc_type']); ?></h2>
@@ -137,9 +144,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnTrack']) && $searc
                     <div class="detail-item"><dt>Student Name</dt><dd><?php echo htmlspecialchars($request_data['name']); ?></dd></div>
                     <div class="detail-item"><dt>Student No.</dt><dd><?php echo htmlspecialchars($request_data['student_no']); ?></dd></div>
                     <div class="detail-item"><dt>Program</dt><dd><?php echo htmlspecialchars($request_data['program']); ?></dd></div>
+                    <div class="detail-item"><dt>Year Level</dt><dd><?php echo htmlspecialchars($request_data['year_level']); ?></dd></div>
                     <div class="detail-item"><dt>Purpose</dt><dd><?php echo htmlspecialchars($request_data['purpose']); ?></dd></div>
+                    <div class="detail-item"><dt>Submitted</dt><dd><?php echo htmlspecialchars(date('M j, Y', strtotime($request_data['created_at']))); ?></dd></div>
                     <div class="detail-item"><dt>Claiming Area</dt><dd><?php echo htmlspecialchars($request_data['claiming_area']); ?></dd></div>
                 </dl>
+                <p class="print-disclaimer">This printout summarizes the request; it is not a copy of the requested record.</p>
+                <button class="print-button" type="button" id="print-request">Print Request</button>
             </section>
         <?php endif; ?>
 
@@ -169,6 +180,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnTrack']) && $searc
         </section>
     </main>
     <script>
+        const printRequestButton = document.getElementById('print-request');
+        if (printRequestButton) {
+            printRequestButton.addEventListener('click', () => {
+                document.body.classList.add('printing-result');
+                window.print();
+            });
+        }
+
+        window.addEventListener('afterprint', () => {
+            document.body.classList.remove('printing-result');
+        });
+
         document.querySelectorAll('[data-reference]').forEach((button) => {
             button.addEventListener('click', () => {
                 const referenceInput = document.getElementById('file_no');

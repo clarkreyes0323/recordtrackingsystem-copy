@@ -426,6 +426,10 @@ foreach ($requests as $request) {
                     <th>
                         Status
                     </th>
+
+                    <th>
+                        Print
+                    </th>
                 </tr>
             </thead>
 
@@ -434,7 +438,7 @@ foreach ($requests as $request) {
                     <tr>
                         <td
                             class="empty-requests"
-                            colspan="8"
+                            colspan="10"
                         >
                             No document requests
                             submitted yet.
@@ -722,6 +726,23 @@ foreach ($requests as $request) {
                                     </button>
                                 </form>
                             </td>
+
+                            <td>
+                                <button
+                                    class="print-button admin-print-button"
+                                    type="button"
+                                    data-print-reference="<?= htmlspecialchars($file_no, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-student-no="<?= htmlspecialchars($student_no, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-name="<?= htmlspecialchars($full_name, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-year-level="<?= htmlspecialchars($year_level, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-program="<?= htmlspecialchars($program, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-document="<?= htmlspecialchars($doc_type, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-purpose="<?= htmlspecialchars($purpose, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-claiming-area="<?= htmlspecialchars($claiming_area, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-submitted="<?= htmlspecialchars(date('M j, Y', strtotime($request['created_at'])), ENT_QUOTES, 'UTF-8') ?>"
+                                >Print</button>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
 
@@ -729,7 +750,7 @@ foreach ($requests as $request) {
                         <tr>
                             <td
                                 class="empty-requests"
-                                colspan="8"
+                                colspan="10"
                             >
                                 <?= $search !== ''
                                     ? 'No requests match your search.'
@@ -743,6 +764,55 @@ foreach ($requests as $request) {
     </div>
         </section>
     </main>
+    <section id="request-print-sheet" class="print-sheet" aria-label="Printable request summary">
+        <header class="print-document-heading">
+            <p>FEU ROOSEVELT</p>
+            <h1>Document Request Summary</h1>
+            <p>Records Office</p>
+        </header>
+        <h2 id="print-document-title"></h2>
+        <dl class="print-detail-grid">
+            <div><dt>Reference No.</dt><dd id="print-reference"></dd></div>
+            <div><dt>Student Name</dt><dd id="print-name"></dd></div>
+            <div><dt>Student No.</dt><dd id="print-student-no"></dd></div>
+            <div><dt>Year Level</dt><dd id="print-year-level"></dd></div>
+            <div><dt>Program</dt><dd id="print-program"></dd></div>
+            <div><dt>Purpose</dt><dd id="print-purpose"></dd></div>
+            <div><dt>Submitted</dt><dd id="print-submitted"></dd></div>
+            <div><dt>Status</dt><dd id="print-status"></dd></div>
+            <div><dt>Claiming Area</dt><dd id="print-claiming-area"></dd></div>
+        </dl>
+        <p class="print-disclaimer">This printout summarizes the request; it is not a copy of the requested record.</p>
+    </section>
+    <script>
+        const printFields = {
+            reference: 'print-reference',
+            studentNo: 'print-student-no',
+            name: 'print-name',
+            yearLevel: 'print-year-level',
+            program: 'print-program',
+            purpose: 'print-purpose',
+            claimingArea: 'print-claiming-area',
+            status: 'print-status',
+            submitted: 'print-submitted'
+        };
+
+        document.querySelectorAll('[data-print-reference]').forEach((button) => {
+            button.addEventListener('click', () => {
+                document.getElementById('print-document-title').textContent = button.dataset.printDocument;
+                Object.entries(printFields).forEach(([dataKey, elementId]) => {
+                    const value = button.dataset[`print${dataKey.charAt(0).toUpperCase()}${dataKey.slice(1)}`];
+                    document.getElementById(elementId).textContent = value || 'Not provided';
+                });
+                document.body.classList.add('printing-request');
+                window.print();
+            });
+        });
+
+        window.addEventListener('afterprint', () => {
+            document.body.classList.remove('printing-request');
+        });
+    </script>
 </body>
 </html>
 

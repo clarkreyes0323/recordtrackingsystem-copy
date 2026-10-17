@@ -591,6 +591,14 @@ table td strong {
 .tracker-shell .request-table tr:last-child td { border-bottom: 0; }
 .tracker-shell .reference-button { border: 0; padding: 0; background: none; color: #005b9a; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; overflow-wrap: anywhere; text-align: left; }
 .tracker-shell .empty-state { padding: 20px; background: white; color: #52635b; border-radius: 6px; }
+.tracker-shell .print-document-heading { display: none; }
+.print-button { border: 0; border-radius: 5px; padding: 10px 16px; background: var(--feu-green); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.print-button:hover { background: var(--feu-green-dark); }
+.print-document-heading { margin-bottom: 28px; text-align: center; }
+.print-document-heading p { margin: 0 0 5px; }
+.print-document-heading h1, .print-document-heading h2 { margin: 0 0 5px; }
+.print-disclaimer { margin: 28px 0 0; color: #52635b; font-size: .9rem; }
+.print-sheet { display: none; }
 
 @media (max-width: 640px) {
     .tracker-shell .tracker-header { align-items: flex-start; flex-direction: column; }
@@ -598,6 +606,45 @@ table td strong {
     .tracker-shell .detail-grid { grid-template-columns: 1fr; gap: 12px; }
     .tracker-shell .result-heading { flex-direction: column; }
     .tracker-shell .request-table th, .tracker-shell .request-table td { padding: 10px; }
+}
+
+@media print {
+    body.printing-result * { visibility: hidden; }
+    body.printing-result .printable-request,
+    body.printing-result .printable-request * { visibility: visible; }
+    body.printing-result .printable-request {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        margin: 0;
+        padding: 24px;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        color: #111;
+    }
+
+    body.printing-result .print-document-heading { display: block; }
+    body.printing-result .printable-request .print-button { display: none; }
+    body.printing-result .tracker-shell .detail-item dt { color: #333; }
+
+    body.printing-request * { visibility: hidden; }
+    body.printing-request #request-print-sheet,
+    body.printing-request #request-print-sheet * { visibility: visible; }
+    body.printing-request #request-print-sheet {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        padding: 24px;
+        color: #111;
+        background: #fff;
+    }
+
+    .print-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .print-detail-grid > div { padding: 10px 0; border-bottom: 1px solid #bbb; }
+    .print-detail-grid dt { margin-bottom: 4px; color: #444; font-size: .9rem; }
+    .print-detail-grid dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 }
 
 /* =========================================
