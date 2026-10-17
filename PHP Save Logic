@@ -1,0 +1,5 @@
+$redirect_params = [
+    'success' => 1,
+    'saved_id' => $request_id,
+    'tab' => $current_tab
+];
