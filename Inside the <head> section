@@ -1,0 +1,32 @@
+<style>
+    /* Save Update Indicator */
+    .save-indicator {
+        display: inline-block;
+        width: 11px;
+        height: 11px;
+        flex: 0 0 11px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid #b8c2bd;
+        margin-right: 7px;
+        vertical-align: middle;
+        transition: background-color .15s ease,
+                    border-color .15s ease;
+    }
+
+    .save-indicator.is-saved,
+    .save-indicator.is-changed {
+        background: #16a34a;
+        border-color: #16a34a;
+    }
+
+    .save-indicator-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        margin-bottom: 7px;
+        font-size: 12px;
+        color: #53635b;
+    }
+</style>
