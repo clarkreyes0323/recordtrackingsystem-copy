@@ -1,0 +1,24 @@
+<div class="save-indicator-row">
+    <span
+        class="save-indicator<?= (
+            is_int($saved_request_id) &&
+            $saved_request_id === (int)$request['id']
+        ) ? ' is-saved' : '' ?>"
+        data-saved="<?= (
+            is_int($saved_request_id) &&
+            $saved_request_id === (int)$request['id']
+        ) ? 'true' : 'false' ?>"
+        title="<?= (
+            is_int($saved_request_id) &&
+            $saved_request_id === (int)$request['id']
+        ) ? 'Saved successfully' : 'No unsaved changes' ?>"
+        role="status"
+    ></span>
+
+    <span class="save-indicator-label">
+        <?= (
+            is_int($saved_request_id) &&
+            $saved_request_id === (int)$request['id']
+        ) ? 'Saved' : 'Unchanged' ?>
+    </span>
+</div>
