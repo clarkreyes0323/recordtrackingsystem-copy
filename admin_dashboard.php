@@ -73,7 +73,8 @@ if (!array_key_exists($current_tab, $tabs)) {
 $tab_statuses = [
     'pending' => 'Pending',
     'processing' => 'Processing',
-    'approved' => 'Approved'
+    'approved' => 'Approved',
+    'ready for_claiming' => 'Ready for Claiming'
 ];
 
 /* =========================
