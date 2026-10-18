@@ -24,6 +24,35 @@ $so = new SystemOperators();
 
 $success_message = '';
 $requests = [];
+$follow_up_messages = [];
+
+$con->query("CREATE TABLE IF NOT EXISTS follow_up_messages (
+    id INT NOT NULL AUTO_INCREMENT,
+    request_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_follow_up_request (request_id),
+    KEY idx_follow_up_sender (sender_id),
+    CONSTRAINT fk_follow_up_request FOREIGN KEY (request_id) REFERENCES document_requests (id) ON DELETE CASCADE,
+    CONSTRAINT fk_follow_up_sender FOREIGN KEY (sender_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+
+$follow_up_query = $con->query(
+    "SELECT follow_up_messages.message, follow_up_messages.created_at,
+            document_requests.file_no, users.name
+     FROM follow_up_messages
+     INNER JOIN document_requests ON follow_up_messages.request_id = document_requests.id
+     INNER JOIN users ON follow_up_messages.sender_id = users.id
+     ORDER BY follow_up_messages.created_at DESC, follow_up_messages.id DESC"
+);
+while ($message = $follow_up_query->fetch_assoc()) {
+    $message['file_no'] = $so->decrypt($message['file_no']) ?: '';
+    $follow_up_messages[] = $message;
+}
+$follow_up_query->free();
+
 $tabs = [
     'all' => 'All Requests',
     'pending' => 'Pending',
@@ -126,8 +155,9 @@ if (
             $old_status = $so->decrypt($existing_request['status']) ?: 'Pending';
             $old_area = $so->decrypt($existing_request['claiming_area'] ?? '') ?: '';
             $changes = [];
+            $status_changed = $old_status !== $status;
 
-            if ($old_status !== $status) {
+            if ($status_changed) {
                 $changes[] = "status changed from $old_status to $status";
             }
             if ($old_area !== $claiming_area) {
@@ -163,6 +193,15 @@ if (
                 $update->bind_param("ssi", $enc_status, $enc_area, $request_id);
                 $update->execute();
                 $update->close();
+
+                if ($status_changed) {
+                    $delete_follow_ups = $con->prepare(
+                        "DELETE FROM follow_up_messages WHERE request_id = ?"
+                    );
+                    $delete_follow_ups->bind_param("i", $request_id);
+                    $delete_follow_ups->execute();
+                    $delete_follow_ups->close();
+                }
 
                 if ($changes && $recipient_id !== null) {
                     $reference = $so->decrypt($existing_request['file_no']);
@@ -261,7 +300,7 @@ foreach ($requests as $request) {
     <link rel="stylesheet" href="style.css?v=<?= filemtime(__DIR__ . '/style.css') ?>">
 </head>
 
-<body class="admin-dashboard-page">
+<body class="admin-dashboard-page sidebar-collapsed">
     <header class="admin-topbar">
         <div class="admin-topbar-inner">
             <a class="admin-brand" href="admin_dashboard.php" aria-label="FEU Roosevelt records dashboard">
@@ -277,6 +316,31 @@ foreach ($requests as $request) {
             </div>
         </div>
     </header>
+
+    <aside class="dashboard-sidebar admin-sidebar" id="dashboardSidebar" aria-label="Admin navigation">
+        <div class="dashboard-sidebar-brand">
+            <a class="admin-brand" href="admin_dashboard.php" aria-label="FEU Roosevelt records dashboard">
+                <span class="admin-brand-mark" aria-hidden="true">FR</span>
+                <span class="admin-brand-copy">
+                    <small>FEU ROOSEVELT</small>
+                    <strong>Records Office</strong>
+                </span>
+            </a>
+            <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-controls="dashboardSidebar" aria-expanded="false" aria-label="Expand sidebar">&rsaquo;</button>
+        </div>
+        <div class="dashboard-sidebar-content">
+            <label class="sidebar-search">
+                <span class="sidebar-search-icon" aria-hidden="true"></span>
+                <input id="sidebarSearch" type="search" aria-label="Search navigation" placeholder="Search">
+            </label>
+            <p class="sidebar-label">Main menu</p>
+            <nav>
+                <a class="sidebar-link" href="#admin-page-title" title="Dashboard"><span class="sidebar-icon" aria-hidden="true">D</span><span class="sidebar-link-text">Dashboard</span></a>
+                <a class="sidebar-link" href="#request-queue-title" title="Request queue"><span class="sidebar-icon" aria-hidden="true">RQ</span><span class="sidebar-link-text">Request queue</span></a>
+                <a class="sidebar-link" href="#follow-ups-title" title="Follow-up messages"><span class="sidebar-icon" aria-hidden="true">FM</span><span class="sidebar-link-text">Follow-up messages</span></a>
+            </nav>
+        </div>
+    </aside>
 
     <main class="admin-main container-fluid">
         <section class="admin-overview" aria-labelledby="admin-page-title">
@@ -305,6 +369,42 @@ foreach ($requests as $request) {
                 <span>Approved</span>
                 <strong><?= $status_counts['Approved'] ?></strong>
             </div>
+        </section>
+
+        <section class="admin-follow-ups" aria-labelledby="follow-ups-title">
+            <div class="admin-queue-heading">
+                <div>
+                    <p class="admin-eyebrow">Student messages</p>
+                    <h2 id="follow-ups-title">Follow-up Messages</h2>
+                </div>
+                <span><?= count($follow_up_messages) ?> total</span>
+            </div>
+            <?php if ($follow_up_messages): ?>
+                <div class="admin-follow-ups-table">
+                    <table class="table admin-request-table">
+                        <thead>
+                            <tr>
+                                <th>Received</th>
+                                <th>Student</th>
+                                <th>Reference No.</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($follow_up_messages as $follow_up): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars(date('M j, Y g:i a', strtotime($follow_up['created_at'])), ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($follow_up['name'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($follow_up['file_no'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td class="follow-up-message"><?= htmlspecialchars($follow_up['message'], ENT_QUOTES, 'UTF-8') ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php else: ?>
+                <p class="admin-follow-ups-empty">No follow-up messages have been sent yet.</p>
+            <?php endif; ?>
         </section>
 
         <section class="admin-queue" aria-labelledby="request-queue-title">
@@ -785,6 +885,23 @@ foreach ($requests as $request) {
         <p class="print-disclaimer">This printout summarizes the request; it is not a copy of the requested record.</p>
     </section>
     <script>
+        const sidebarToggle = document.getElementById('sidebarToggle');
+
+        sidebarToggle.addEventListener('click', () => {
+            document.body.classList.toggle('sidebar-collapsed');
+            const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+            sidebarToggle.setAttribute('aria-expanded', String(!isCollapsed));
+            sidebarToggle.setAttribute('aria-label', isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+            sidebarToggle.innerHTML = isCollapsed ? '&rsaquo;' : '&lsaquo;';
+        });
+
+        document.getElementById('sidebarSearch').addEventListener('input', (event) => {
+            const searchText = event.target.value.toLowerCase();
+            document.querySelectorAll('#dashboardSidebar .sidebar-link').forEach((link) => {
+                link.hidden = !link.textContent.toLowerCase().includes(searchText);
+            });
+        });
+
         const printFields = {
             reference: 'print-reference',
             studentNo: 'print-student-no',
