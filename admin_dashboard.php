@@ -156,8 +156,9 @@ if (
             $old_status = $so->decrypt($existing_request['status']) ?: 'Pending';
             $old_area = $so->decrypt($existing_request['claiming_area'] ?? '') ?: '';
             $changes = [];
+            $status_changed = $old_status !== $status;
 
-            if ($old_status !== $status) {
+            if ($status_changed) {
                 $changes[] = "status changed from $old_status to $status";
             }
             if ($old_area !== $claiming_area) {
@@ -193,6 +194,15 @@ if (
                 $update->bind_param("ssi", $enc_status, $enc_area, $request_id);
                 $update->execute();
                 $update->close();
+
+                if ($status_changed) {
+                    $delete_follow_ups = $con->prepare(
+                        "DELETE FROM follow_up_messages WHERE request_id = ?"
+                    );
+                    $delete_follow_ups->bind_param("i", $request_id);
+                    $delete_follow_ups->execute();
+                    $delete_follow_ups->close();
+                }
 
                 if ($changes && $recipient_id !== null) {
                     $reference = $so->decrypt($existing_request['file_no']);
