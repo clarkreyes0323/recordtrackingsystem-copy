@@ -23,6 +23,12 @@ $con = connection();
 $so = new SystemOperators();
 
 $success_message = '';
+$saved_request_id = filter_input(
+    INPUT_GET,
+    'saved_id',
+    FILTER_VALIDATE_INT,
+    ['options' => ['min_range' => 1]]
+) ?: null;
 $requests = [];
 $follow_up_messages = [];
 
@@ -213,6 +219,7 @@ if (
                 $con->commit();
                 $redirect_params = [
                     'success' => 1,
+                    'saved_id' => $request_id,
                     'tab' => $current_tab
                 ];
                 if ($search !== '') {
@@ -632,6 +639,7 @@ foreach ($requests as $request) {
                             $so->decrypt(
                                 $request['status']
                             ) ?: 'Pending';
+                        $is_saved_request = $saved_request_id === (int)$request['id'];
 
                         if (
                             $current_tab !== 'all' &&
@@ -786,6 +794,16 @@ foreach ($requests as $request) {
                                     <input type="hidden" name="tab" value="<?= htmlspecialchars($current_tab) ?>">
                                     <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
 
+                                    <div class="save-indicator-row">
+                                        <span
+                                            class="save-indicator<?= $is_saved_request ? ' is-saved' : '' ?>"
+                                            title="<?= $is_saved_request ? 'Saved successfully' : 'No unsaved changes' ?>"
+                                            role="status"
+                                            aria-label="<?= $is_saved_request ? 'Saved successfully' : 'No unsaved changes' ?>"
+                                        ></span>
+                                        <span class="save-indicator-label"><?= $is_saved_request ? 'Saved' : 'Unchanged' ?></span>
+                                    </div>
+
                                     <select
                                         name="status"
                                         required
@@ -892,6 +910,33 @@ foreach ($requests as $request) {
         <p class="print-disclaimer">This printout summarizes the request; it is not a copy of the requested record.</p>
     </section>
     <script>
+        document.querySelectorAll('.request-form').forEach((form) => {
+            const row = form.closest('tr');
+            const indicator = form.querySelector('.save-indicator');
+            const label = form.querySelector('.save-indicator-label');
+            const statusSelect = form.querySelector('select[name="status"]');
+            const claimingArea = row ? row.querySelector('.request-area') : null;
+
+            if (!indicator || !label) {
+                return;
+            }
+
+            const markChanged = () => {
+                indicator.classList.remove('is-saved');
+                indicator.classList.add('is-changed');
+                indicator.title = 'Changed — click Save Update';
+                indicator.setAttribute('aria-label', 'Changed — click Save Update');
+                label.textContent = 'Unsaved changes';
+            };
+
+            if (statusSelect) {
+                statusSelect.addEventListener('change', markChanged);
+            }
+            if (claimingArea) {
+                claimingArea.addEventListener('input', markChanged);
+            }
+        });
+
         const sidebarToggle = document.getElementById('sidebarToggle');
 
         sidebarToggle.addEventListener('click', () => {
