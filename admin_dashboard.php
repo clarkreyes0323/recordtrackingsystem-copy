@@ -24,11 +24,41 @@ $so = new SystemOperators();
 
 $success_message = '';
 $requests = [];
+$follow_up_messages = [];
+
+$con->query("CREATE TABLE IF NOT EXISTS follow_up_messages (
+    id INT NOT NULL AUTO_INCREMENT,
+    request_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_follow_up_request (request_id),
+    KEY idx_follow_up_sender (sender_id),
+    CONSTRAINT fk_follow_up_request FOREIGN KEY (request_id) REFERENCES document_requests (id) ON DELETE CASCADE,
+    CONSTRAINT fk_follow_up_sender FOREIGN KEY (sender_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+
+$follow_up_query = $con->query(
+    "SELECT follow_up_messages.message, follow_up_messages.created_at,
+            document_requests.file_no, users.name
+     FROM follow_up_messages
+     INNER JOIN document_requests ON follow_up_messages.request_id = document_requests.id
+     INNER JOIN users ON follow_up_messages.sender_id = users.id
+     ORDER BY follow_up_messages.created_at DESC, follow_up_messages.id DESC"
+);
+while ($message = $follow_up_query->fetch_assoc()) {
+    $message['file_no'] = $so->decrypt($message['file_no']) ?: '';
+    $follow_up_messages[] = $message;
+}
+$follow_up_query->free();
+
 $tabs = [
     'all' => 'All Requests',
     'pending' => 'Pending',
     'processing' => 'Processing',
-    'approved' => 'Approved'
+    'approved' => 'Approved',
+    'ready for_claiming' => 'Ready for Claiming',
 ];
 $current_tab = $_GET['tab'] ?? $_POST['tab'] ?? 'all';
 if (!array_key_exists($current_tab, $tabs)) {
@@ -209,6 +239,11 @@ $query =
 
 if ($result = $con->query($query)) {
     while ($row = $result->fetch_assoc()) {
+        $status = $so->decrypt($row['status']) ?: 'Pending';
+
+        if ($status === 'Completed' || $status === 'Rejected') {
+            continue;
+        }
         $requests[] = $row;
     }
 
@@ -261,7 +296,7 @@ foreach ($requests as $request) {
     <link rel="stylesheet" href="style.css?v=<?= filemtime(__DIR__ . '/style.css') ?>">
 </head>
 
-<body class="admin-dashboard-page">
+<body class="admin-dashboard-page sidebar-collapsed">
     <header class="admin-topbar">
         <div class="admin-topbar-inner">
             <a class="admin-brand" href="admin_dashboard.php" aria-label="FEU Roosevelt records dashboard">
@@ -273,10 +308,36 @@ foreach ($requests as $request) {
             </a>
             <div class="admin-topbar-actions">
                 <?php include("./helpers/notification_center.php"); ?>
+                <a href="archive.php" class="btn btn-sm me-2 text-decoration-none fw-semibold shadow-sm admin-archive">Archive</a>
                 <a href="logout.php" class="admin-logout">Sign out</a>
             </div>
         </div>
     </header>
+
+    <aside class="dashboard-sidebar admin-sidebar" id="dashboardSidebar" aria-label="Admin navigation">
+        <div class="dashboard-sidebar-brand">
+            <a class="admin-brand" href="admin_dashboard.php" aria-label="FEU Roosevelt records dashboard">
+                <span class="admin-brand-mark" aria-hidden="true">FR</span>
+                <span class="admin-brand-copy">
+                    <small>FEU ROOSEVELT</small>
+                    <strong>Records Office</strong>
+                </span>
+            </a>
+            <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-controls="dashboardSidebar" aria-expanded="false" aria-label="Expand sidebar">&rsaquo;</button>
+        </div>
+        <div class="dashboard-sidebar-content">
+            <label class="sidebar-search">
+                <span class="sidebar-search-icon" aria-hidden="true"></span>
+                <input id="sidebarSearch" type="search" aria-label="Search navigation" placeholder="Search">
+            </label>
+            <p class="sidebar-label">Main menu</p>
+            <nav>
+                <a class="sidebar-link" href="#admin-page-title" title="Dashboard"><span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 1 1 18 0"/><path d="M12 13l4-4M5 18h14M7 13h.01M17 13h.01"/></svg></span><span class="sidebar-link-text">Dashboard</span></a>
+                <a class="sidebar-link" href="#request-queue-title" title="Request queue"><span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 10h5l2 3h2l2-3h5M8 8h.01M11 8h.01"/></svg></span><span class="sidebar-link-text">Request queue</span></a>
+                <a class="sidebar-link" href="#follow-ups-title" title="Follow-up messages"><span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v12H9l-5 4zM8 9h8M8 13h5"/></svg></span><span class="sidebar-link-text">Follow-up messages</span></a>
+            </nav>
+        </div>
+    </aside>
 
     <main class="admin-main container-fluid">
         <section class="admin-overview" aria-labelledby="admin-page-title">
@@ -305,6 +366,42 @@ foreach ($requests as $request) {
                 <span>Approved</span>
                 <strong><?= $status_counts['Approved'] ?></strong>
             </div>
+        </section>
+
+        <section class="admin-follow-ups" aria-labelledby="follow-ups-title">
+            <div class="admin-queue-heading">
+                <div>
+                    <p class="admin-eyebrow">Student messages</p>
+                    <h2 id="follow-ups-title">Follow-up Messages</h2>
+                </div>
+                <span><?= count($follow_up_messages) ?> total</span>
+            </div>
+            <?php if ($follow_up_messages): ?>
+                <div class="admin-follow-ups-table">
+                    <table class="table admin-request-table">
+                        <thead>
+                            <tr>
+                                <th>Received</th>
+                                <th>Student</th>
+                                <th>Reference No.</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($follow_up_messages as $follow_up): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars(date('M j, Y g:i a', strtotime($follow_up['created_at'])), ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($follow_up['name'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($follow_up['file_no'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td class="follow-up-message"><?= htmlspecialchars($follow_up['message'], ENT_QUOTES, 'UTF-8') ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php else: ?>
+                <p class="admin-follow-ups-empty">No follow-up messages have been sent yet.</p>
+            <?php endif; ?>
         </section>
 
         <section class="admin-queue" aria-labelledby="request-queue-title">
@@ -426,6 +523,10 @@ foreach ($requests as $request) {
                     <th>
                         Status
                     </th>
+
+                    <th>
+                        Print
+                    </th>
                 </tr>
             </thead>
 
@@ -434,7 +535,7 @@ foreach ($requests as $request) {
                     <tr>
                         <td
                             class="empty-requests"
-                            colspan="8"
+                            colspan="10"
                         >
                             No document requests
                             submitted yet.
@@ -722,6 +823,23 @@ foreach ($requests as $request) {
                                     </button>
                                 </form>
                             </td>
+
+                            <td>
+                                <button
+                                    class="print-button admin-print-button"
+                                    type="button"
+                                    data-print-reference="<?= htmlspecialchars($file_no, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-student-no="<?= htmlspecialchars($student_no, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-name="<?= htmlspecialchars($full_name, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-year-level="<?= htmlspecialchars($year_level, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-program="<?= htmlspecialchars($program, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-document="<?= htmlspecialchars($doc_type, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-purpose="<?= htmlspecialchars($purpose, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-claiming-area="<?= htmlspecialchars($claiming_area, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-submitted="<?= htmlspecialchars(date('M j, Y', strtotime($request['created_at'])), ENT_QUOTES, 'UTF-8') ?>"
+                                >Print</button>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
 
@@ -729,7 +847,7 @@ foreach ($requests as $request) {
                         <tr>
                             <td
                                 class="empty-requests"
-                                colspan="8"
+                                colspan="10"
                             >
                                 <?= $search !== ''
                                     ? 'No requests match your search.'
@@ -743,6 +861,72 @@ foreach ($requests as $request) {
     </div>
         </section>
     </main>
+    <section id="request-print-sheet" class="print-sheet" aria-label="Printable request summary">
+        <header class="print-document-heading">
+            <p>FEU ROOSEVELT</p>
+            <h1>Document Request Summary</h1>
+            <p>Records Office</p>
+        </header>
+        <h2 id="print-document-title"></h2>
+        <dl class="print-detail-grid">
+            <div><dt>Reference No.</dt><dd id="print-reference"></dd></div>
+            <div><dt>Student Name</dt><dd id="print-name"></dd></div>
+            <div><dt>Student No.</dt><dd id="print-student-no"></dd></div>
+            <div><dt>Year Level</dt><dd id="print-year-level"></dd></div>
+            <div><dt>Program</dt><dd id="print-program"></dd></div>
+            <div><dt>Purpose</dt><dd id="print-purpose"></dd></div>
+            <div><dt>Submitted</dt><dd id="print-submitted"></dd></div>
+            <div><dt>Status</dt><dd id="print-status"></dd></div>
+            <div><dt>Claiming Area</dt><dd id="print-claiming-area"></dd></div>
+        </dl>
+        <p class="print-disclaimer">This printout summarizes the request; it is not a copy of the requested record.</p>
+    </section>
+    <script>
+        const sidebarToggle = document.getElementById('sidebarToggle');
+
+        sidebarToggle.addEventListener('click', () => {
+            document.body.classList.toggle('sidebar-collapsed');
+            const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+            sidebarToggle.setAttribute('aria-expanded', String(!isCollapsed));
+            sidebarToggle.setAttribute('aria-label', isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+            sidebarToggle.innerHTML = isCollapsed ? '&rsaquo;' : '&lsaquo;';
+        });
+
+        document.getElementById('sidebarSearch').addEventListener('input', (event) => {
+            const searchText = event.target.value.toLowerCase();
+            document.querySelectorAll('#dashboardSidebar .sidebar-link').forEach((link) => {
+                link.hidden = !link.textContent.toLowerCase().includes(searchText);
+            });
+        });
+
+        const printFields = {
+            reference: 'print-reference',
+            studentNo: 'print-student-no',
+            name: 'print-name',
+            yearLevel: 'print-year-level',
+            program: 'print-program',
+            purpose: 'print-purpose',
+            claimingArea: 'print-claiming-area',
+            status: 'print-status',
+            submitted: 'print-submitted'
+        };
+
+        document.querySelectorAll('[data-print-reference]').forEach((button) => {
+            button.addEventListener('click', () => {
+                document.getElementById('print-document-title').textContent = button.dataset.printDocument;
+                Object.entries(printFields).forEach(([dataKey, elementId]) => {
+                    const value = button.dataset[`print${dataKey.charAt(0).toUpperCase()}${dataKey.slice(1)}`];
+                    document.getElementById(elementId).textContent = value || 'Not provided';
+                });
+                document.body.classList.add('printing-request');
+                window.print();
+            });
+        });
+
+        window.addEventListener('afterprint', () => {
+            document.body.classList.remove('printing-request');
+        });
+    </script>
 </body>
 </html>
 
