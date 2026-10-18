@@ -4,7 +4,11 @@ body:has(.container) {
     max-width: 100% !important;
     margin: 0 !important;
     overflow: hidden;
-    background-color: #00681C;
+    /* Added background image properties here */
+    background-image: url('https://feuroosevelt.edu.ph/wp-content/uploads/2025/08/bg8x-scaled.jpg') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-color: #00681C; /* Fallback color */
 }
 
 .container {
@@ -13,18 +17,22 @@ body:has(.container) {
     height: 100vh !important;
     margin: 0 !important;
     padding: 0 !important;
+    background: transparent !important; /* Added */
 }
 
 .form-container {
-    width: 75% !important; 
+    width: 75% !important;
     min-width: 420px;
-    background-color: #00681C !important;
+    background-color: rgba(0, 104, 28, 0.85) !important;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
     padding: 0 5% !important;
     z-index: 2;
-    align-items: center !important; 
+    align-items: center !important;
 }
 
 .form-container form {
@@ -142,9 +150,7 @@ body:has(.container) {
 
 .image-container {
     width: 50% !important; 
-    background-image: linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)), url('https://feuroosevelt.edu.ph/wp-content/uploads/2025/08/bg8x-scaled.jpg') !important;
-    background-size: cover !important;
-    background-position: center !important;
+    background: transparent !important; /* Makes the container invisible so the body background shows through */
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
