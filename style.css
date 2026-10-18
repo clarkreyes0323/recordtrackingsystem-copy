@@ -1972,6 +1972,47 @@ body.admin-dashboard-page {
     padding: 8px;
 }
 
+.admin-dashboard-page .save-indicator-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #61736c;
+    font-size: .72rem;
+    line-height: 1.2;
+}
+
+.admin-dashboard-page .save-indicator {
+    position: relative;
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    flex: 0 0 12px;
+    border: 2px solid #89968f;
+    border-radius: 50%;
+}
+
+.admin-dashboard-page .save-indicator.is-saved {
+    border-color: #16833b;
+    background: #16833b;
+}
+
+.admin-dashboard-page .save-indicator.is-saved::after {
+    position: absolute;
+    top: 0;
+    left: 2px;
+    width: 4px;
+    height: 7px;
+    border: solid #fff;
+    border-width: 0 1.5px 1.5px 0;
+    content: "";
+    transform: rotate(45deg);
+}
+
+.admin-dashboard-page .save-indicator.is-changed {
+    border-color: #c89615;
+    background: #f1c644;
+}
+
 .admin-dashboard-page .request-form button {
     width: 100%;
     margin: 0;
