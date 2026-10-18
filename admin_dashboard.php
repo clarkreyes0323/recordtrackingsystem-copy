@@ -23,11 +23,6 @@ $con = connection();
 $so = new SystemOperators();
 
 $success_message = '';
-$saved_request_id = (
-    isset($_GET['saved_id']) &&
-    ctype_digit((string) $_GET['saved_id'])
-) ? (int) $_GET['saved_id'] : null;
-
 $requests = [];
 $follow_up_messages = [];
 
@@ -62,7 +57,8 @@ $tabs = [
     'all' => 'All Requests',
     'pending' => 'Pending',
     'processing' => 'Processing',
-    'approved' => 'Approved'
+    'approved' => 'Approved',
+    'ready for_claiming' => 'Ready for Claiming',
 ];
 $current_tab = $_GET['tab'] ?? $_POST['tab'] ?? 'all';
 if (!array_key_exists($current_tab, $tabs)) {
@@ -160,9 +156,8 @@ if (
             $old_status = $so->decrypt($existing_request['status']) ?: 'Pending';
             $old_area = $so->decrypt($existing_request['claiming_area'] ?? '') ?: '';
             $changes = [];
-            $status_changed = $old_status !== $status;
 
-            if ($status_changed) {
+            if ($old_status !== $status) {
                 $changes[] = "status changed from $old_status to $status";
             }
             if ($old_area !== $claiming_area) {
@@ -199,15 +194,6 @@ if (
                 $update->execute();
                 $update->close();
 
-                if ($status_changed) {
-                    $delete_follow_ups = $con->prepare(
-                        "DELETE FROM follow_up_messages WHERE request_id = ?"
-                    );
-                    $delete_follow_ups->bind_param("i", $request_id);
-                    $delete_follow_ups->execute();
-                    $delete_follow_ups->close();
-                }
-
                 if ($changes && $recipient_id !== null) {
                     $reference = $so->decrypt($existing_request['file_no']);
                     $message = "Your request $reference was updated: " . implode('; ', $changes) . '.';
@@ -217,7 +203,6 @@ if (
                 $con->commit();
                 $redirect_params = [
                     'success' => 1,
-                    'saved_id' => $request_id,
                     'tab' => $current_tab
                 ];
                 if ($search !== '') {
@@ -254,6 +239,11 @@ $query =
 
 if ($result = $con->query($query)) {
     while ($row = $result->fetch_assoc()) {
+        $status = $so->decrypt($row['status']) ?: 'Pending';
+
+        if ($status === 'Completed' || $status === 'Rejected') {
+            continue;
+        }
         $requests[] = $row;
     }
 
@@ -304,40 +294,6 @@ foreach ($requests as $request) {
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="style.css?v=<?= filemtime(__DIR__ . '/style.css') ?>">
-
-    <style>
-        /* Save Update Indicator */
-        .save-indicator {
-            display: inline-block;
-            width: 11px;
-            height: 11px;
-            flex: 0 0 11px;
-            border-radius: 50%;
-            background: #fff;
-            border: 2px solid #b8c2bd;
-            margin-right: 7px;
-            vertical-align: middle;
-            transition: background-color .15s ease,
-                        border-color .15s ease;
-        }
-
-        .save-indicator.is-saved,
-        .save-indicator.is-changed {
-            background: #16a34a;
-            border-color: #16a34a;
-        }
-
-        .save-indicator-row {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 2px;
-            margin-bottom: 7px;
-            font-size: 12px;
-            color: #53635b;
-        }
-    </style>
-
 </head>
 
 <body class="admin-dashboard-page sidebar-collapsed">
@@ -352,6 +308,7 @@ foreach ($requests as $request) {
             </a>
             <div class="admin-topbar-actions">
                 <?php include("./helpers/notification_center.php"); ?>
+                <a href="archive.php" class="btn btn-sm me-2 text-decoration-none fw-semibold shadow-sm admin-archive">Archive</a>
                 <a href="logout.php" class="admin-logout">Sign out</a>
             </div>
         </div>
@@ -819,35 +776,6 @@ foreach ($requests as $request) {
                                     <input type="hidden" name="tab" value="<?= htmlspecialchars($current_tab) ?>">
                                     <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
 
-                                    <div class="save-indicator-row">
-                                        <span
-                                            class="save-indicator<?= (
-                                                is_int($saved_request_id) &&
-                                                $saved_request_id === (int)$request['id']
-                                            ) ? ' is-saved' : '' ?>"
-                                            data-saved="<?= (
-                                                is_int($saved_request_id) &&
-                                                $saved_request_id === (int)$request['id']
-                                            ) ? 'true' : 'false' ?>"
-                                            title="<?= (
-                                                is_int($saved_request_id) &&
-                                                $saved_request_id === (int)$request['id']
-                                            ) ? 'Saved successfully' : 'No unsaved changes' ?>"
-                                            role="status"
-                                            aria-label="<?= (
-                                                is_int($saved_request_id) &&
-                                                $saved_request_id === (int)$request['id']
-                                            ) ? 'Saved successfully' : 'No unsaved changes' ?>"
-                                        ></span>
-
-                                        <span class="save-indicator-label">
-                                            <?= (
-                                                is_int($saved_request_id) &&
-                                                $saved_request_id === (int)$request['id']
-                                            ) ? 'Saved' : 'Unchanged' ?>
-                                        </span>
-                                    </div>
-
                                     <select
                                         name="status"
                                         required
@@ -954,44 +882,6 @@ foreach ($requests as $request) {
         <p class="print-disclaimer">This printout summarizes the request; it is not a copy of the requested record.</p>
     </section>
     <script>
-        /* Save Update Indicator */
-        document.querySelectorAll('.request-form').forEach(function (form) {
-            const row = form.closest('tr');
-            const indicator = form.querySelector('.save-indicator');
-            const label = form.querySelector('.save-indicator-label');
-
-            const statusSelect = form.querySelector(
-                'select[name="status"]'
-            );
-
-            const claimingArea = row
-                ? row.querySelector('.request-area')
-                : null;
-
-            if (!indicator || !label) return;
-
-            function markChanged() {
-                indicator.classList.remove('is-saved');
-                indicator.classList.add('is-changed');
-
-                indicator.title = 'Changed — click Save Update';
-                indicator.setAttribute(
-                    'aria-label',
-                    'Changed — click Save Update'
-                );
-
-                label.textContent = 'Unsaved changes';
-            }
-
-            if (statusSelect) {
-                statusSelect.addEventListener('change', markChanged);
-            }
-
-            if (claimingArea) {
-                claimingArea.addEventListener('input', markChanged);
-            }
-        });
-
         const sidebarToggle = document.getElementById('sidebarToggle');
 
         sidebarToggle.addEventListener('click', () => {
