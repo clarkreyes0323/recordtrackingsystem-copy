@@ -23,7 +23,41 @@ $con = connection();
 $so = new SystemOperators();
 
 $success_message = '';
+$saved_request_id = (
+    isset($_GET['saved_id']) &&
+    ctype_digit((string) $_GET['saved_id'])
+) ? (int) $_GET['saved_id'] : null;
+
 $requests = [];
+$follow_up_messages = [];
+
+$con->query("CREATE TABLE IF NOT EXISTS follow_up_messages (
+    id INT NOT NULL AUTO_INCREMENT,
+    request_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_follow_up_request (request_id),
+    KEY idx_follow_up_sender (sender_id),
+    CONSTRAINT fk_follow_up_request FOREIGN KEY (request_id) REFERENCES document_requests (id) ON DELETE CASCADE,
+    CONSTRAINT fk_follow_up_sender FOREIGN KEY (sender_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+
+$follow_up_query = $con->query(
+    "SELECT follow_up_messages.message, follow_up_messages.created_at,
+            document_requests.file_no, users.name
+     FROM follow_up_messages
+     INNER JOIN document_requests ON follow_up_messages.request_id = document_requests.id
+     INNER JOIN users ON follow_up_messages.sender_id = users.id
+     ORDER BY follow_up_messages.created_at DESC, follow_up_messages.id DESC"
+);
+while ($message = $follow_up_query->fetch_assoc()) {
+    $message['file_no'] = $so->decrypt($message['file_no']) ?: '';
+    $follow_up_messages[] = $message;
+}
+$follow_up_query->free();
+
 $tabs = [
     'all' => 'All Requests',
     'pending' => 'Pending',
@@ -39,6 +73,29 @@ $tab_statuses = [
     'processing' => 'Processing',
     'approved' => 'Approved'
 ];
+
+/* =========================
+   STUDENT CLASSIFICATION FUNCTIONS
+   ========================= */
+
+function getStudentClassification ($year_level) {
+    $year_level = strtolower(trim($year_level));
+    if (in_array($year_level, ['nursery', 'kindergarten 1', 'kindergarten 2'], true)) {
+        return ['Pre-school', 'name' => 'PRE', 'bg_color' => '#e0f7fa', 'border_color' => '#f2fd5a', 'dot_color' => '#f5dc00', 'text_color' => '#a37000'];
+    } elseif (in_array($year_level, ['grade 1', 'grade 2', 'grade 3', 'grade 4', 'grade 5', 'grade 6'], true)) {
+        return ['Grade School', 'name' => 'GS', 'bg_color' => '#f1f8e9', 'border_color' => '#33691e', 'dot_color' => '#0f3600', 'text_color' => '#33691e'];
+    } elseif (in_array($year_level, ['grade 7', 'grade 8', 'grade 9', 'grade 10'], true)) {
+        return ['Junior High School', 'name' => 'JHS', 'bg_color' => '#fff3e0', 'border_color' => '#e65100', 'dot_color' => '#702700', 'text_color' => '#e65100'];
+    } elseif (in_array($year_level, ['grade 11', 'grade 12'], true)) {
+        return ['Senior High School', 'name' => 'SHS', 'bg_color' => '#fce4ec', 'border_color' => '#e9007c', 'dot_color' => '#880e4f', 'text_color' => '#880e4f'];
+    } elseif (in_array($year_level, ['1st year', '2nd year', '3rd year', '4th year'], true)) {
+        return ['Tertiary Education', 'name' => 'TED', 'bg_color' => '#e8f5e9', 'border_color' => '#a5a5a5', 'dot_color' => '#3d3d3d', 'text_color' => '#2e7d32'];
+    } elseif (in_array($year_level, ['Alumni'], true)) {
+        return ['Alumni', 'name' => 'AM', 'bg_color' => '#f5f5f5', 'border_color' => '#b135e2', 'dot_color' => '#420034', 'text_color' => '#f1f1f1'];
+    } else {
+        return ['Unknown', 'name' => 'N/A', 'bg_color' => '#ffffff', 'border_color' => '#030303', 'dot_color' => '#ffffff', 'text_color' => '#0c0c0c'];
+    }
+}
 
 /* =========================
    SEARCH FILTER
@@ -90,7 +147,7 @@ if (
     ) {
 
         $lookup = $con->prepare(
-            "SELECT user_id, email, file_no, status, claiming_area
+            "SELECT id, email, file_no, status, claiming_area
              FROM document_requests
              WHERE id = ?"
         );
@@ -103,8 +160,9 @@ if (
             $old_status = $so->decrypt($existing_request['status']) ?: 'Pending';
             $old_area = $so->decrypt($existing_request['claiming_area'] ?? '') ?: '';
             $changes = [];
+            $status_changed = $old_status !== $status;
 
-            if ($old_status !== $status) {
+            if ($status_changed) {
                 $changes[] = "status changed from $old_status to $status";
             }
             if ($old_area !== $claiming_area) {
@@ -141,6 +199,15 @@ if (
                 $update->execute();
                 $update->close();
 
+                if ($status_changed) {
+                    $delete_follow_ups = $con->prepare(
+                        "DELETE FROM follow_up_messages WHERE request_id = ?"
+                    );
+                    $delete_follow_ups->bind_param("i", $request_id);
+                    $delete_follow_ups->execute();
+                    $delete_follow_ups->close();
+                }
+
                 if ($changes && $recipient_id !== null) {
                     $reference = $so->decrypt($existing_request['file_no']);
                     $message = "Your request $reference was updated: " . implode('; ', $changes) . '.';
@@ -149,10 +216,10 @@ if (
 
                 $con->commit();
                 $redirect_params = [
-    'success' => 1,
-    'saved_id' => $request_id,
-    'tab' => $current_tab
-];
+                    'success' => 1,
+                    'saved_id' => $request_id,
+                    'tab' => $current_tab
+                ];
                 if ($search !== '') {
                     $redirect_params['search'] = $search;
                 }
@@ -170,10 +237,6 @@ if (
 /* =========================
    SUCCESS MESSAGE
    ========================= */
-
-$saved_request_id = isset($_GET['saved_id'])
-    ? (int) $_GET['saved_id']
-    : 0;
 
 if (isset($_GET['success'])) {
     $success_message =
@@ -241,42 +304,43 @@ foreach ($requests as $request) {
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="style.css?v=<?= filemtime(__DIR__ . '/style.css') ?>">
+
+    <style>
+        /* Save Update Indicator */
+        .save-indicator {
+            display: inline-block;
+            width: 11px;
+            height: 11px;
+            flex: 0 0 11px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #b8c2bd;
+            margin-right: 7px;
+            vertical-align: middle;
+            transition: background-color .15s ease,
+                        border-color .15s ease;
+        }
+
+        .save-indicator.is-saved,
+        .save-indicator.is-changed {
+            background: #16a34a;
+            border-color: #16a34a;
+        }
+
+        .save-indicator-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            margin-bottom: 7px;
+            font-size: 12px;
+            color: #53635b;
+        }
+    </style>
+
 </head>
 
-<style>
-    /* Save Update Indicator */
-    .save-indicator {
-        display: inline-block;
-        width: 11px;
-        height: 11px;
-        flex: 0 0 11px;
-        border-radius: 50%;
-        background: #fff;
-        border: 2px solid #b8c2bd;
-        margin-right: 7px;
-        vertical-align: middle;
-        transition: background-color .15s ease,
-                    border-color .15s ease;
-    }
-
-    .save-indicator.is-saved,
-    .save-indicator.is-changed {
-        background: #16a34a;
-        border-color: #16a34a;
-    }
-
-    .save-indicator-row {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 2px;
-        margin-bottom: 7px;
-        font-size: 12px;
-        color: #53635b;
-    }
-</style>
-
-<body class="admin-dashboard-page">
+<body class="admin-dashboard-page sidebar-collapsed">
     <header class="admin-topbar">
         <div class="admin-topbar-inner">
             <a class="admin-brand" href="admin_dashboard.php" aria-label="FEU Roosevelt records dashboard">
@@ -292,6 +356,31 @@ foreach ($requests as $request) {
             </div>
         </div>
     </header>
+
+    <aside class="dashboard-sidebar admin-sidebar" id="dashboardSidebar" aria-label="Admin navigation">
+        <div class="dashboard-sidebar-brand">
+            <a class="admin-brand" href="admin_dashboard.php" aria-label="FEU Roosevelt records dashboard">
+                <span class="admin-brand-mark" aria-hidden="true">FR</span>
+                <span class="admin-brand-copy">
+                    <small>FEU ROOSEVELT</small>
+                    <strong>Records Office</strong>
+                </span>
+            </a>
+            <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-controls="dashboardSidebar" aria-expanded="false" aria-label="Expand sidebar">&rsaquo;</button>
+        </div>
+        <div class="dashboard-sidebar-content">
+            <label class="sidebar-search">
+                <span class="sidebar-search-icon" aria-hidden="true"></span>
+                <input id="sidebarSearch" type="search" aria-label="Search navigation" placeholder="Search">
+            </label>
+            <p class="sidebar-label">Main menu</p>
+            <nav>
+                <a class="sidebar-link" href="#admin-page-title" title="Dashboard"><span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 1 1 18 0"/><path d="M12 13l4-4M5 18h14M7 13h.01M17 13h.01"/></svg></span><span class="sidebar-link-text">Dashboard</span></a>
+                <a class="sidebar-link" href="#request-queue-title" title="Request queue"><span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 10h5l2 3h2l2-3h5M8 8h.01M11 8h.01"/></svg></span><span class="sidebar-link-text">Request queue</span></a>
+                <a class="sidebar-link" href="#follow-ups-title" title="Follow-up messages"><span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v12H9l-5 4zM8 9h8M8 13h5"/></svg></span><span class="sidebar-link-text">Follow-up messages</span></a>
+            </nav>
+        </div>
+    </aside>
 
     <main class="admin-main container-fluid">
         <section class="admin-overview" aria-labelledby="admin-page-title">
@@ -320,6 +409,42 @@ foreach ($requests as $request) {
                 <span>Approved</span>
                 <strong><?= $status_counts['Approved'] ?></strong>
             </div>
+        </section>
+
+        <section class="admin-follow-ups" aria-labelledby="follow-ups-title">
+            <div class="admin-queue-heading">
+                <div>
+                    <p class="admin-eyebrow">Student messages</p>
+                    <h2 id="follow-ups-title">Follow-up Messages</h2>
+                </div>
+                <span><?= count($follow_up_messages) ?> total</span>
+            </div>
+            <?php if ($follow_up_messages): ?>
+                <div class="admin-follow-ups-table">
+                    <table class="table admin-request-table">
+                        <thead>
+                            <tr>
+                                <th>Received</th>
+                                <th>Student</th>
+                                <th>Reference No.</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($follow_up_messages as $follow_up): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars(date('M j, Y g:i a', strtotime($follow_up['created_at'])), ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($follow_up['name'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($follow_up['file_no'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td class="follow-up-message"><?= htmlspecialchars($follow_up['message'], ENT_QUOTES, 'UTF-8') ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php else: ?>
+                <p class="admin-follow-ups-empty">No follow-up messages have been sent yet.</p>
+            <?php endif; ?>
         </section>
 
         <section class="admin-queue" aria-labelledby="request-queue-title">
@@ -419,6 +544,10 @@ foreach ($requests as $request) {
                     </th>
 
                     <th>
+                        Year Level
+                    </th>
+
+                    <th>
                         Program
                     </th>
 
@@ -437,6 +566,10 @@ foreach ($requests as $request) {
                     <th>
                         Status
                     </th>
+
+                    <th>
+                        Print
+                    </th>
                 </tr>
             </thead>
 
@@ -445,7 +578,7 @@ foreach ($requests as $request) {
                     <tr>
                         <td
                             class="empty-requests"
-                            colspan="8"
+                            colspan="10"
                         >
                             No document requests
                             submitted yet.
@@ -498,6 +631,12 @@ foreach ($requests as $request) {
                             );
 
 
+                        $year_level =
+                            $so->decrypt(
+                                $request['year_level']
+                            );
+
+
                         $program =
                             $so->decrypt(
                                 $request['program']
@@ -546,6 +685,7 @@ foreach ($requests as $request) {
                                 "$file_no
                                 $student_no
                                 $full_name
+                                $year_level
                                 $program
                                 $doc_type
                                 $purpose
@@ -599,8 +739,30 @@ foreach ($requests as $request) {
 
                             <!-- STUDENT NAME -->
                             <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span><?= htmlspecialchars(
+                                        $full_name
+                                    ) ?></span>
+
+                                    <?php
+                                    // Get the student classification based on the year level
+                                    $classif = getStudentClassification($year_level);
+
+                                    if (!empty($classif)):
+                                    ?>
+                                        <span class="d-inline-flex align-items-center px-2 py-1 rounded-pill text-xs font-bold" 
+                                        style="background-color: <?= $classif['bg_color'] ?>; border: 1px solid <?= $classif['border_color'] ?>; border-radius: 4px; font-size: 0.85rem;">
+                                        <span class="rounded-circle me-1" style="width: 6px; height: 6px; background-color: <?= $classif['dot_color'] ?>; display: inline-block;"></span>
+                                        <?= htmlspecialchars($classif['name']) ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+
+                            <!-- YEAR LEVEL -->
+                            <td>
                                 <?= htmlspecialchars(
-                                    $full_name
+                                    $year_level
                                 ) ?>
                             </td>
 
@@ -610,6 +772,7 @@ foreach ($requests as $request) {
                                     $program
                                 ) ?>
                             </td>
+
 
                             <!-- FILE TYPE -->
                             <td>
@@ -657,30 +820,34 @@ foreach ($requests as $request) {
                                     <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
 
                                     <div class="save-indicator-row">
+                                        <span
+                                            class="save-indicator<?= (
+                                                is_int($saved_request_id) &&
+                                                $saved_request_id === (int)$request['id']
+                                            ) ? ' is-saved' : '' ?>"
+                                            data-saved="<?= (
+                                                is_int($saved_request_id) &&
+                                                $saved_request_id === (int)$request['id']
+                                            ) ? 'true' : 'false' ?>"
+                                            title="<?= (
+                                                is_int($saved_request_id) &&
+                                                $saved_request_id === (int)$request['id']
+                                            ) ? 'Saved successfully' : 'No unsaved changes' ?>"
+                                            role="status"
+                                            aria-label="<?= (
+                                                is_int($saved_request_id) &&
+                                                $saved_request_id === (int)$request['id']
+                                            ) ? 'Saved successfully' : 'No unsaved changes' ?>"
+                                        ></span>
 
-    <span
-        class="save-indicator<?= (
-            is_int($saved_request_id) &&
-            $saved_request_id === (int)$request['id']
-        ) ? ' is-saved' : '' ?>"
-        data-saved="<?= (
-            is_int($saved_request_id) &&
-            $saved_request_id === (int)$request['id']
-        ) ? 'true' : 'false' ?>"
-        title="<?= (
-            is_int($saved_request_id) &&
-            $saved_request_id === (int)$request['id']
-        ) ? 'Saved successfully' : 'No unsaved changes' ?>"
-        role="status"
-    ></span>
+                                        <span class="save-indicator-label">
+                                            <?= (
+                                                is_int($saved_request_id) &&
+                                                $saved_request_id === (int)$request['id']
+                                            ) ? 'Saved' : 'Unchanged' ?>
+                                        </span>
+                                    </div>
 
-    <span class="save-indicator-label">
-        <?= (
-            is_int($saved_request_id) &&
-            $saved_request_id === (int)$request['id']
-        ) ? 'Saved' : 'Unchanged' ?>
-    </span>
-</div>
                                     <select
                                         name="status"
                                         required
@@ -728,6 +895,23 @@ foreach ($requests as $request) {
                                     </button>
                                 </form>
                             </td>
+
+                            <td>
+                                <button
+                                    class="print-button admin-print-button"
+                                    type="button"
+                                    data-print-reference="<?= htmlspecialchars($file_no, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-student-no="<?= htmlspecialchars($student_no, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-name="<?= htmlspecialchars($full_name, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-year-level="<?= htmlspecialchars($year_level, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-program="<?= htmlspecialchars($program, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-document="<?= htmlspecialchars($doc_type, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-purpose="<?= htmlspecialchars($purpose, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-claiming-area="<?= htmlspecialchars($claiming_area, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-print-submitted="<?= htmlspecialchars(date('M j, Y', strtotime($request['created_at'])), ENT_QUOTES, 'UTF-8') ?>"
+                                >Print</button>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
 
@@ -735,7 +919,7 @@ foreach ($requests as $request) {
                         <tr>
                             <td
                                 class="empty-requests"
-                                colspan="8"
+                                colspan="10"
                             >
                                 <?= $search !== ''
                                     ? 'No requests match your search.'
@@ -749,45 +933,110 @@ foreach ($requests as $request) {
     </div>
         </section>
     </main>
-
+    <section id="request-print-sheet" class="print-sheet" aria-label="Printable request summary">
+        <header class="print-document-heading">
+            <p>FEU ROOSEVELT</p>
+            <h1>Document Request Summary</h1>
+            <p>Records Office</p>
+        </header>
+        <h2 id="print-document-title"></h2>
+        <dl class="print-detail-grid">
+            <div><dt>Reference No.</dt><dd id="print-reference"></dd></div>
+            <div><dt>Student Name</dt><dd id="print-name"></dd></div>
+            <div><dt>Student No.</dt><dd id="print-student-no"></dd></div>
+            <div><dt>Year Level</dt><dd id="print-year-level"></dd></div>
+            <div><dt>Program</dt><dd id="print-program"></dd></div>
+            <div><dt>Purpose</dt><dd id="print-purpose"></dd></div>
+            <div><dt>Submitted</dt><dd id="print-submitted"></dd></div>
+            <div><dt>Status</dt><dd id="print-status"></dd></div>
+            <div><dt>Claiming Area</dt><dd id="print-claiming-area"></dd></div>
+        </dl>
+        <p class="print-disclaimer">This printout summarizes the request; it is not a copy of the requested record.</p>
+    </section>
     <script>
-document.querySelectorAll('.request-form').forEach(function (form) {
-    const row = form.closest('tr');
-    const indicator = form.querySelector('.save-indicator');
-    const label = form.querySelector('.save-indicator-label');
+        /* Save Update Indicator */
+        document.querySelectorAll('.request-form').forEach(function (form) {
+            const row = form.closest('tr');
+            const indicator = form.querySelector('.save-indicator');
+            const label = form.querySelector('.save-indicator-label');
 
-    const statusSelect = form.querySelector(
-        'select[name="status"]'
-    );
+            const statusSelect = form.querySelector(
+                'select[name="status"]'
+            );
 
-    const claimingArea = row
-        ? row.querySelector('.request-area')
-        : null;
+            const claimingArea = row
+                ? row.querySelector('.request-area')
+                : null;
 
-    if (!indicator || !label) return;
+            if (!indicator || !label) return;
 
-    function markChanged() {
-        indicator.classList.remove('is-saved');
-        indicator.classList.add('is-changed');
+            function markChanged() {
+                indicator.classList.remove('is-saved');
+                indicator.classList.add('is-changed');
 
-        indicator.title = 'Changed — click Save Update';
-        indicator.setAttribute(
-            'aria-label',
-            'Changed — click Save Update'
-        );
+                indicator.title = 'Changed — click Save Update';
+                indicator.setAttribute(
+                    'aria-label',
+                    'Changed — click Save Update'
+                );
 
-        label.textContent = 'Unsaved changes';
-    }
+                label.textContent = 'Unsaved changes';
+            }
 
-    if (statusSelect) {
-        statusSelect.addEventListener('change', markChanged);
-    }
+            if (statusSelect) {
+                statusSelect.addEventListener('change', markChanged);
+            }
 
-    if (claimingArea) {
-        claimingArea.addEventListener('input', markChanged);
-    }
-});
-</script>
+            if (claimingArea) {
+                claimingArea.addEventListener('input', markChanged);
+            }
+        });
+
+        const sidebarToggle = document.getElementById('sidebarToggle');
+
+        sidebarToggle.addEventListener('click', () => {
+            document.body.classList.toggle('sidebar-collapsed');
+            const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+            sidebarToggle.setAttribute('aria-expanded', String(!isCollapsed));
+            sidebarToggle.setAttribute('aria-label', isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+            sidebarToggle.innerHTML = isCollapsed ? '&rsaquo;' : '&lsaquo;';
+        });
+
+        document.getElementById('sidebarSearch').addEventListener('input', (event) => {
+            const searchText = event.target.value.toLowerCase();
+            document.querySelectorAll('#dashboardSidebar .sidebar-link').forEach((link) => {
+                link.hidden = !link.textContent.toLowerCase().includes(searchText);
+            });
+        });
+
+        const printFields = {
+            reference: 'print-reference',
+            studentNo: 'print-student-no',
+            name: 'print-name',
+            yearLevel: 'print-year-level',
+            program: 'print-program',
+            purpose: 'print-purpose',
+            claimingArea: 'print-claiming-area',
+            status: 'print-status',
+            submitted: 'print-submitted'
+        };
+
+        document.querySelectorAll('[data-print-reference]').forEach((button) => {
+            button.addEventListener('click', () => {
+                document.getElementById('print-document-title').textContent = button.dataset.printDocument;
+                Object.entries(printFields).forEach(([dataKey, elementId]) => {
+                    const value = button.dataset[`print${dataKey.charAt(0).toUpperCase()}${dataKey.slice(1)}`];
+                    document.getElementById(elementId).textContent = value || 'Not provided';
+                });
+                document.body.classList.add('printing-request');
+                window.print();
+            });
+        });
+
+        window.addEventListener('afterprint', () => {
+            document.body.classList.remove('printing-request');
+        });
+    </script>
 </body>
 </html>
 
