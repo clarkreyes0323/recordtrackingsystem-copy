@@ -2301,3 +2301,7 @@ body.sidebar-collapsed .sidebar-link-text {
     line-height: 1.2;
     white-space: normal;
 }
+
+body.admin-dashboard-page.sidebar-collapsed .admin-sidebar .sidebar-link-text {
+    display: block;
+}
