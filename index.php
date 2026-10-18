@@ -200,7 +200,6 @@ $con->close();
     <div class="image-container">
       <div class="image-content"></div>
     </div>
-
   </div>
 
   <script>
