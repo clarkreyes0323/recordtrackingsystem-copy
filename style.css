@@ -696,15 +696,22 @@ table td strong {
 
 .sidebar-icon {
     display: grid;
-    width: 30px;
-    height: 30px;
-    flex: 0 0 30px;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
     place-items: center;
-    border-radius: 6px;
-    background: #f1f5f3;
-    color: #006b3c;
-    font-size: .7rem;
-    font-weight: 800;
+    color: #16833b;
+}
+
+.sidebar-icon svg {
+    display: block;
+    width: 26px;
+    height: 26px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
 }
 
 /* Admin dashboard */
@@ -2178,4 +2185,119 @@ body.sidebar-collapsed .dashboard-sidebar nav .sidebar-icon {
     .student-dashboard-page .student-topbar-actions {
         gap: 6px;
     }
+}
+
+/* --- Student Dashboard Enhancements --- */
+
+.student-section,
+.student-metric {
+    background-color: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.student-metric:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+    transform: translateY(-2px);
+}
+
+.follow-up-button, 
+.student-action-link {
+    transition: all 0.2s ease-in-out !important;
+}
+
+.follow-up-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 104, 28, 0.2);
+    filter: brightness(1.05);
+}
+
+.student-action-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 12px -2px rgba(0, 0, 0, 0.08);
+    border-color: #00681C; 
+}
+
+.student-requests-table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.student-requests-table tbody tr:hover {
+    background-color: #f8fafc !important; 
+}
+
+.student-requests-table thead th {
+    border-bottom: 2px solid #e2e8f0;
+    color: #475569;
+}
+
+.sidebar-link {
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-link:hover {
+    background-color: #e2e8f0; 
+    border-radius: 6px;
+}
+
+.sidebar-link:hover .sidebar-icon {
+    color: #00681C; 
+}
+
+/* Reserve the fixed navigation rail so it does not cover page content. */
+body.student-dashboard-page .student-main,
+body.student-dashboard-page .tracker-shell,
+body.student-dashboard-page .request-page-main,
+body.admin-dashboard-page .admin-main {
+    box-sizing: border-box;
+    width: calc(100% - 148px);
+    max-width: none;
+    margin-right: 16px;
+    margin-left: 132px;
+}
+
+body:not(.sidebar-collapsed).student-dashboard-page .student-main,
+body:not(.sidebar-collapsed).student-dashboard-page .tracker-shell,
+body:not(.sidebar-collapsed).student-dashboard-page .request-page-main,
+body:not(.sidebar-collapsed).admin-dashboard-page .admin-main {
+    width: calc(100% - 312px);
+    margin-left: 296px;
+}
+
+@media (max-width: 760px) {
+    body:not(.sidebar-collapsed).student-dashboard-page .student-main,
+    body:not(.sidebar-collapsed).student-dashboard-page .tracker-shell,
+    body:not(.sidebar-collapsed).student-dashboard-page .request-page-main,
+    body:not(.sidebar-collapsed).admin-dashboard-page .admin-main {
+        width: calc(100% - 148px);
+        margin-left: 132px;
+    }
+
+    .dashboard-sidebar {
+        z-index: 20;
+    }
+}
+
+body.sidebar-collapsed .dashboard-sidebar {
+    width: 100px;
+}
+
+body.sidebar-collapsed .dashboard-sidebar nav .sidebar-link {
+    min-height: 70px;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 3px;
+    text-align: center;
+}
+
+body.sidebar-collapsed .sidebar-link-text {
+    display: block;
+    max-width: 88px;
+    color: #16833b;
+    font-size: .7rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: normal;
 }

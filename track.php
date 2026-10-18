@@ -95,6 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnSubmitFollowUp']) 
 
 if ($user && !empty($user['email'])) {
     $current_user_email = strtolower(trim($so->decrypt($user['email']) ?: ''));
+    // TODO (student archive): Keep this full request-history list in sync with the archive split on the dashboard.
     $select_docs = "SELECT * FROM `document_requests` WHERE `user_id` = ? OR `user_id` IS NULL ORDER BY `id` DESC";
     $stmt = $con->prepare($select_docs);
     $stmt->bind_param("i", $_SESSION["user_id"]);
@@ -188,9 +189,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnTrack']) && $searc
             </label>
             <p class="sidebar-label">Main menu</p>
             <nav>
-                <a class="sidebar-link" href="student_dashboard.php" title="Dashboard"><span class="sidebar-icon" aria-hidden="true">D</span><span class="sidebar-link-text">Dashboard</span></a>
-                <a class="sidebar-link" href="track.php" title="Track Requests"><span class="sidebar-icon" aria-hidden="true">TR</span><span class="sidebar-link-text">Track Requests</span></a>
-                <a class="sidebar-link" href="request.php" title="New Request"><span class="sidebar-icon" aria-hidden="true">NR</span><span class="sidebar-link-text">New Request</span></a>
+                <a class="sidebar-link" href="student_dashboard.php" title="Dashboard"><span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 1 1 18 0"/><path d="M12 13l4-4M5 18h14M7 13h.01M17 13h.01"/></svg></span><span class="sidebar-link-text">Dashboard</span></a>
+                <a class="sidebar-link" href="track.php" title="Track Requests"><span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v5h4M10 12h6M10 16h6"/></svg></span><span class="sidebar-link-text">Track Requests</span></a>
+                <a class="sidebar-link" href="request.php" title="New Request"><span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4h12v16H6zM9 8h6M9 12h3"/><path d="M17 15v6M14 18h6"/></svg></span><span class="sidebar-link-text">New Request</span></a>
             </nav>
         </div>
     </aside>

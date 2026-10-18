@@ -335,9 +335,9 @@ foreach ($requests as $request) {
             </label>
             <p class="sidebar-label">Main menu</p>
             <nav>
-                <a class="sidebar-link" href="#admin-page-title" title="Dashboard"><span class="sidebar-icon" aria-hidden="true">D</span><span class="sidebar-link-text">Dashboard</span></a>
-                <a class="sidebar-link" href="#request-queue-title" title="Request queue"><span class="sidebar-icon" aria-hidden="true">RQ</span><span class="sidebar-link-text">Request queue</span></a>
-                <a class="sidebar-link" href="#follow-ups-title" title="Follow-up messages"><span class="sidebar-icon" aria-hidden="true">FM</span><span class="sidebar-link-text">Follow-up messages</span></a>
+                <a class="sidebar-link" href="#admin-page-title" title="Dashboard"><span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 1 1 18 0"/><path d="M12 13l4-4M5 18h14M7 13h.01M17 13h.01"/></svg></span><span class="sidebar-link-text">Dashboard</span></a>
+                <a class="sidebar-link" href="#request-queue-title" title="Request queue"><span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 10h5l2 3h2l2-3h5M8 8h.01M11 8h.01"/></svg></span><span class="sidebar-link-text">Request queue</span></a>
+                <a class="sidebar-link" href="#follow-ups-title" title="Follow-up messages"><span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v12H9l-5 4zM8 9h8M8 13h5"/></svg></span><span class="sidebar-link-text">Follow-up messages</span></a>
             </nav>
         </div>
     </aside>
