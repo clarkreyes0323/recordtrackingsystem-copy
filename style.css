@@ -2304,7 +2304,7 @@ body.sidebar-collapsed .dashboard-sidebar nav .sidebar-icon {
 body.student-dashboard-page .student-main,
 body.student-dashboard-page .tracker-shell,
 body.student-dashboard-page .request-page-main,
-body.admin-dashboard-page .admin-main {
+body.admin-dashboard-page:not(.archive-page) .admin-main {
     box-sizing: border-box;
     width: calc(100% - 148px);
     max-width: none;
@@ -2315,7 +2315,7 @@ body.admin-dashboard-page .admin-main {
 body:not(.sidebar-collapsed).student-dashboard-page .student-main,
 body:not(.sidebar-collapsed).student-dashboard-page .tracker-shell,
 body:not(.sidebar-collapsed).student-dashboard-page .request-page-main,
-body:not(.sidebar-collapsed).admin-dashboard-page .admin-main {
+body:not(.sidebar-collapsed).admin-dashboard-page:not(.archive-page) .admin-main {
     width: calc(100% - 312px);
     margin-left: 296px;
 }
@@ -2324,7 +2324,7 @@ body:not(.sidebar-collapsed).admin-dashboard-page .admin-main {
     body:not(.sidebar-collapsed).student-dashboard-page .student-main,
     body:not(.sidebar-collapsed).student-dashboard-page .tracker-shell,
     body:not(.sidebar-collapsed).student-dashboard-page .request-page-main,
-    body:not(.sidebar-collapsed).admin-dashboard-page .admin-main {
+    body:not(.sidebar-collapsed).admin-dashboard-page:not(.archive-page) .admin-main {
         width: calc(100% - 148px);
         margin-left: 132px;
     }
