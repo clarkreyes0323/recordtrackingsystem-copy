@@ -1,8 +1,10 @@
 <?php
+// Buffer output so redirects and response scripts can be sent safely.
 ob_start();
+// Keep the signed-in student's identity available during this request.
 session_start();
 
-// Student authentication
+// Only authenticated student accounts may submit document requests.
 if (
     !isset($_SESSION['user_id']) ||
     ($_SESSION['role'] ?? '') !== 'student'
@@ -11,45 +13,60 @@ if (
     exit();
 }
 
+// Load database access, encryption helpers, and notification handling.
 include("./connection/config.php");
 include("./helpers/SystemOperators.php");
 require_once("./helpers/NotificationService.php");
 
+// Open the database connection and create the helper used for encrypted data.
 $con = connection();
 $so = new SystemOperators();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw_file_no = "DOC-" . date("Ymd") . "-" . strtoupper($so->randomStringGenerator(8));$file_no     = $so->encrypt($raw_file_no);
+// Process the form only when it was submitted using its registration button.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {
+    // Generate a human-readable tracking number and encrypt it for storage.
+    $raw_file_no = "DOC-" . date("Ymd") . "-" . strtoupper($so->randomStringGenerator(8));
+    $file_no = $so->encrypt($raw_file_no);
 
+    // Associate this request with the student who is currently signed in.
     $user_id = (int)$_SESSION['user_id'];
 
-    $student_no  =$so->encrypt(trim(filter_input(INPUT_POST, 'student_no', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
-    $fname       =$so->encrypt(trim(filter_input(INPUT_POST, 'firstname', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
-    $lname       =$so->encrypt(trim(filter_input(INPUT_POST, 'lastname', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
-    $mname       =$so->encrypt(trim(filter_input(INPUT_POST, 'middlename', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
-    $year_level  =$so->encrypt(trim(filter_input(INPUT_POST, 'year_level', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
-    $program     =$so->encrypt(trim(filter_input(INPUT_POST, 'program', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
-    $email       =$so->encrypt(trim(filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL) ?? ''));
-    $doc_type    =$so->encrypt(trim(filter_input(INPUT_POST, 'doc_type', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
-    $purpose     =$so->encrypt(trim(filter_input(INPUT_POST, 'purpose', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
-    
-    $status        =$so->encrypt('Pending');
-    $claiming_area =$so->encrypt('Pending Registrar Assignment');
+    // Sanitize, trim, and encrypt each submitted value before saving it.
+    $student_no = $so->encrypt(trim(filter_input(INPUT_POST, 'student_no', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
+    $fname = $so->encrypt(trim(filter_input(INPUT_POST, 'firstname', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
+    $lname = $so->encrypt(trim(filter_input(INPUT_POST, 'lastname', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
+    $mname = $so->encrypt(trim(filter_input(INPUT_POST, 'middlename', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
+    $year_level = $so->encrypt(trim(filter_input(INPUT_POST, 'year_level', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
+    $program = $so->encrypt(trim(filter_input(INPUT_POST, 'program', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
+    $email = $so->encrypt(trim(filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL) ?? ''));
+    $doc_type = $so->encrypt(trim(filter_input(INPUT_POST, 'doc_type', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
+    $purpose = $so->encrypt(trim(filter_input(INPUT_POST, 'purpose', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
 
+    // New requests start pending and await the registrar's claiming-area assignment.
+    $status = $so->encrypt('Pending');
+    $claiming_area = $so->encrypt('Pending Registrar Assignment');
+
+    // Prepare a parameterized insert so form values are bound as data.
     $insert_query = "INSERT INTO `document_requests`
                     (`user_id`, `file_no`, `student_no`, `firstname`, `lastname`, `middlename`, `year_level`, `program`, `email`, `doc_type`, `purpose`, `claiming_area`, `status`)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    
+
+    // Bind the request data in the same order as the insert columns.
     $insert_stmt = $con->prepare($insert_query);
     $insert_stmt->bind_param('issssssssssss', $user_id, $file_no, $student_no, $fname, $lname, $mname, $year_level, $program, $email, $doc_type, $purpose, $claiming_area, $status);
-    
+
+    // Save the request and its notifications together as a single transaction.
     try {
         $con->begin_transaction();
         if ($insert_stmt->execute()) {
+            // Use the inserted ID to associate notifications with this request.
             $request_id = (int)$con->insert_id;
+            // Find every administrator who should be notified of the new request.
             $admin_stmt = $con->prepare("SELECT id FROM users WHERE role = 'admin'");
             $admin_stmt->execute();
             $admin_result = $admin_stmt->get_result();
             while ($admin = $admin_result->fetch_assoc()) {
+                // Notify each administrator with the student's tracking number.
                 addNotification(
                     $con,
                     (int)$admin['id'],
@@ -57,21 +74,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw
                     $request_id
                 );
             }
+            // Close the lookup and commit the saved request and notifications.
             $admin_stmt->close();
             $con->commit();
             $insert_stmt->close();
+            // Show the tracking number and direct the student to request tracking.
             echo "<script> 
                     alert('Request submitted successfully!\\nYour Reference/File No. is: " . $raw_file_no . "\\nPlease save this number for tracking.');
                     window.location='track.php';
                   </script>";
             exit();
         }
+        // Revert the transaction if the request could not be inserted.
         $con->rollback();
     } catch(mysqli_sql_exception $e) {
+        // Revert partial work and report the database error to the student.
         $con->rollback();
         echo "<script>alert('Database Error: " . addslashes($e->getMessage()) . "');</script>";
     }
-    
+
+    // Release the prepared statement after processing the submission.
     $insert_stmt->close();
 }
 
@@ -80,12 +102,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Set document encoding and responsive viewport for the request page. -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Document Request Form</title>
+    <!-- Load the shared styles and refresh the asset URL to avoid stale CSS. -->
     <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 <body class="student-dashboard-page student-request-page sidebar-collapsed">
+    <!-- Provide the portal brand and account actions at the top of the page. -->
     <header class="student-topbar">
         <div class="student-topbar-inner">
             <a class="student-brand" href="student_dashboard.php" aria-label="FEU Roosevelt student portal home">
@@ -102,6 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw
         </div>
     </header>
 
+    <!-- Show navigation links and a control for collapsing the student sidebar. -->
     <aside class="dashboard-sidebar student-sidebar" id="dashboardSidebar" aria-label="Student navigation">
         <div class="dashboard-sidebar-brand">
             <a class="student-brand" href="student_dashboard.php" aria-label="FEU Roosevelt student portal home">
@@ -127,30 +153,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw
         </div>
     </aside>
 
+    <!-- Main content contains the student document request form. -->
     <main class="request-page-main">
         <div class="nav-header">
             <h2>Student Document Request Form</h2>
         </div>
 
+        <!-- Submit student details and document requirements to this page. -->
         <form action="request.php" method="post">
             <div class="form-fields">
                 <div class="form-items">
+                    <!-- Collect the student's school identification number. -->
                     <label>Student No.:</label>
                     <input type="text" name="student_no" required placeholder="2026-0001">
                 </div>
                 <div class="form-items">
+                    <!-- Collect the student's legal last name. -->
                     <label>Last Name:</label>
                     <input type="text" name="lastname" required placeholder="Dela Cruz">
                 </div>
                 <div class="form-items">
+                    <!-- Collect the student's first name. -->
                     <label>First Name:</label>
                     <input type="text" name="firstname" required placeholder="Juan">
                 </div>
                 <div class="form-items">
+                    <!-- Collect the middle name when the student has one. -->
                     <label>Middle Name:</label>
                     <input type="text" name="middlename" placeholder="Santos / Leave blank if none">
                 </div>
                 <div class="form-items">
+                    <!-- Let the student select their current year level. -->
                     <label>Year Level:</label>
                     <select name="year_level">
                         <option value="" selected>Select year level</option>
@@ -178,6 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw
                     </select>
                 </div>
                 <div class="form-items">
+                    <!-- Let the student select their degree program or course. -->
                     <label>Degree Program / Course:</label>
                     <select name="program" required>
                         <option value="" disabled selected>Select degree program / course</option>
@@ -189,6 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw
                     </select>
                 </div>
                 <div class="form-items">
+                    <!-- Collect an email address for request-related communication. -->
                     <label>Email:</label>
                     <input type="email" name="email" required placeholder="example@school.edu">
                 </div>
@@ -196,6 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw
                 <hr>
 
                 <div class="form-items">
+                    <!-- Let the student choose which record or document to request. -->
                     <label>Record Requested Type:</label>
                     <select name="doc_type" required>
                         <option value="" disabled selected>Select document type</option>
@@ -216,18 +252,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw
                     </select>
                 </div>
                 <div class="form-items">
+                    <!-- Record why the student needs the requested document. -->
                     <label>Purpose:</label>
                     <input type="text" name="purpose" required placeholder="Evaluation / Transfer">
                 </div>
 
+                <!-- Submit the completed request to the PHP processing block above. -->
                 <button type="submit" name="btnRegister">Submit Request</button>
             </div>
         </form>
     </main>
 
+    <!-- Enable sidebar collapse and filter navigation links from the search box. -->
     <script>
         const sidebarToggle = document.getElementById('sidebarToggle');
 
+        // Toggle the sidebar and keep its accessible state labels in sync.
         sidebarToggle.addEventListener('click', () => {
             document.body.classList.toggle('sidebar-collapsed');
             const isCollapsed = document.body.classList.contains('sidebar-collapsed');
@@ -236,6 +276,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw
             sidebarToggle.innerHTML = isCollapsed ? '&rsaquo;' : '&lsaquo;';
         });
 
+        // Hide navigation links that do not match the entered search text.
         document.getElementById('sidebarSearch').addEventListener('input', (event) => {
             const searchText = event.target.value.toLowerCase();
             document.querySelectorAll('#dashboardSidebar .sidebar-link').forEach((link) => {
@@ -243,6 +284,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {$raw
             });
         });
     </script>
+    <!-- Close the database connection after the page has been rendered. -->
     <?php $con->close(); ?>
 </body>
 </html>
