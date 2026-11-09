@@ -87,7 +87,7 @@ if ($result = $con->query($query)) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=<?= filemtime(__DIR__ . '/style.css') ?>">
 </head>
-<body class="admin-dashboard-page">
+<body class="admin-dashboard-page archive-page">
     <header class="admin-topbar">
         <div class="admin-topbar-inner">
             <a class="admin-brand" href="admin_dashboard.php" aria-label="FEU Roosevelt records dashboard">

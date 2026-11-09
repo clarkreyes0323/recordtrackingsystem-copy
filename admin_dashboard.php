@@ -76,6 +76,12 @@ $tab_statuses = [
     'approved' => 'Approved',
     'ready for_claiming' => 'Ready for Claiming'
 ];
+$claiming_areas = [
+    'Pending Registrar Assignment',
+    'Marikina',
+    'Cainta',
+    'Rodriguez'
+];
 
 /* =========================
    STUDENT CLASSIFICATION FUNCTIONS
@@ -160,7 +166,7 @@ if (
         $request_id &&
         $request_id > 0 &&
         in_array($status, $allowed_statuses, true) &&
-        $claiming_area !== ''
+        in_array($claiming_area, $claiming_areas, true)
     ) {
 
         $lookup = $con->prepare(
@@ -780,17 +786,21 @@ foreach ($requests as $request) {
 
                             <!-- CLAIMING AREA -->
                             <td class="claiming-area-cell">
-                                <input
+                                <select
                                     class="request-area"
-                                    type="text"
                                     name="claiming_area"
                                     form="<?= $form_id ?>"
-                                    placeholder="Claiming area"
-                                    value="<?= htmlspecialchars(
-                                        $claiming_area
-                                    ) ?>"
                                     required
                                 >
+                                    <?php foreach ($claiming_areas as $area): ?>
+                                        <option
+                                            value="<?= htmlspecialchars($area, ENT_QUOTES, 'UTF-8') ?>"
+                                            <?= $claiming_area === $area ? 'selected' : '' ?>
+                                        >
+                                            <?= htmlspecialchars($area, ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
                             </td>
 
                             <!-- STATUS -->
@@ -948,7 +958,7 @@ foreach ($requests as $request) {
                 statusSelect.addEventListener('change', markChanged);
             }
             if (claimingArea) {
-                claimingArea.addEventListener('input', markChanged);
+                claimingArea.addEventListener('change', markChanged);
             }
         });
 
