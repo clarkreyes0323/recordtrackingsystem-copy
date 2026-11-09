@@ -22,8 +22,61 @@ require_once("./helpers/NotificationService.php");
 $con = connection();
 $so = new SystemOperators();
 
+$year_levels = [
+    'Nursery',
+    'Kindergarten 1',
+    'Kindergarten 2 (Preparatory)',
+    'Grade 1',
+    'Grade 2',
+    'Grade 3',
+    'Grade 4',
+    'Grade 5',
+    'Grade 6',
+    'Grade 7',
+    'Grade 8',
+    'Grade 9',
+    'Grade 10',
+    'Grade 11',
+    'Grade 12',
+    '1st year (College)',
+    '2nd year (College)',
+    '3rd year (College)',
+    '4th year (College)',
+    'Alumni',
+    'N/A'
+];
+$college_year_levels = [
+    '1st year (College)',
+    '2nd year (College)',
+    '3rd year (College)',
+    '4th year (College)',
+    'Alumni'
+];
+$degree_programs = [
+    'Bachelor of Science in Information Technology (BSIT)',
+    'Bachelor of Multimedia Arts (BMMA)',
+    'Bachelor of Science in Business Administration (BSBA)',
+    'Bachelor of Science in Tourism Management (BSTM)',
+    'Bachelor of Science in Hospitality Management (BSHM)'
+];
+
 // Process the form only when it was submitted using its registration button.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {
+    // Accept only a program valid for the selected year level.
+    $year_level_value = trim(filter_input(INPUT_POST, 'year_level', FILTER_SANITIZE_SPECIAL_CHARS) ?? '');
+    $program_value = trim(filter_input(INPUT_POST, 'program', FILTER_SANITIZE_SPECIAL_CHARS) ?? '');
+    $allowed_programs = in_array($year_level_value, $college_year_levels, true)
+        ? $degree_programs
+        : ['N/A'];
+
+    if (
+        !in_array($year_level_value, $year_levels, true) ||
+        !in_array($program_value, $allowed_programs, true)
+    ) {
+        http_response_code(400);
+        exit('Please select a valid year level and its matching program or course.');
+    }
+
     // Generate a human-readable tracking number and encrypt it for storage.
     $raw_file_no = "DOC-" . date("Ymd") . "-" . strtoupper($so->randomStringGenerator(8));
     $file_no = $so->encrypt($raw_file_no);
@@ -36,8 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {
     $fname = $so->encrypt(trim(filter_input(INPUT_POST, 'firstname', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
     $lname = $so->encrypt(trim(filter_input(INPUT_POST, 'lastname', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
     $mname = $so->encrypt(trim(filter_input(INPUT_POST, 'middlename', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
-    $year_level = $so->encrypt(trim(filter_input(INPUT_POST, 'year_level', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
-    $program = $so->encrypt(trim(filter_input(INPUT_POST, 'program', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
+    $year_level = $so->encrypt($year_level_value);
+    $program = $so->encrypt($program_value);
     $email = $so->encrypt(trim(filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL) ?? ''));
     $doc_type = $so->encrypt(trim(filter_input(INPUT_POST, 'doc_type', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
     $purpose = $so->encrypt(trim(filter_input(INPUT_POST, 'purpose', FILTER_SANITIZE_SPECIAL_CHARS) ?? ''));
@@ -185,41 +238,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {
                 <div class="form-items">
                     <!-- Let the student select their current year level. -->
                     <label>Year Level:</label>
-                    <select name="year_level">
-                        <option value="" selected>Select year level</option>
-                        <option value="Nursery">Nursery</option>
-                        <option value="Kindergarten 1">Kindergarten 1</option>
-                        <option value="Kindergarten 2 (Preparatory)">Kindergarten 2 (Preparatory)</option>
-                        <option value="Grade 1">Grade 1</option>
-                        <option value="Grade 2">Grade 2</option>
-                        <option value="Grade 3">Grade 3</option>
-                        <option value="Grade 4">Grade 4</option>
-                        <option value="Grade 5">Grade 5</option>
-                        <option value="Grade 6">Grade 6</option>
-                        <option value="Grade 7">Grade 7</option>
-                        <option value="Grade 8">Grade 8</option>
-                        <option value="Grade 9">Grade 9</option>
-                        <option value="Grade 10">Grade 10</option>
-                        <option value="Grade 11">Grade 11</option>
-                        <option value="Grade 12">Grade 12</option>
-                        <option value="1st year (College)">1st year (College)</option>
-                        <option value="2nd year (College)">2nd year (College)</option>
-                        <option value="3rd year (College)">3rd year (College)</option>
-                        <option value="4th year (College)">4th year (College)</option>
-                        <option value="Alumni">Alumni</option>
-                        <option value="N/A">N/A</option>
+                    <select name="year_level" id="yearLevel" required>
+                        <option value="" selected disabled>Select year level</option>
+                        <?php foreach ($year_levels as $level): ?>
+                            <option value="<?= htmlspecialchars($level, ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars($level, ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="form-items">
                     <!-- Let the student select their degree program or course. -->
                     <label>Degree Program / Course:</label>
-                    <select name="program" required>
-                        <option value="" disabled selected>Select degree program / course</option>
-                        <option value="Bachelor of Science in Information Technology (BSIT)">Bachelor of Science in Information Technology (BSIT)</option>
-                        <option value="Bachelor of Multimedia Arts (BMMA)">Bachelor of Multimedia Arts (BMMA)</option>
-                        <option value="Bachelor of Science in Business Administration (BSBA)">Bachelor of Science in Business Administration (BSBA)</option>
-                        <option value="Bachelor of Science in Tourism Management (BSTM)">Bachelor of Science in Tourism Management (BSTM)</option>
-                        <option value="Bachelor of Science in Hospitality Management (BSHM)">Bachelor of Science in Hospitality Management (BSHM)</option>
+                    <select name="program" id="program" required disabled>
+                        <option value="" selected>Select a year level first</option>
                     </select>
                 </div>
                 <div class="form-items">
@@ -265,6 +297,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {
 
     <!-- Enable sidebar collapse and filter navigation links from the search box. -->
     <script>
+        const yearLevelSelect = document.getElementById('yearLevel');
+        const programSelect = document.getElementById('program');
+        const collegeYearLevels = <?= json_encode($college_year_levels, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        const degreePrograms = <?= json_encode($degree_programs, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
+        // Keep course selection locked until a year level determines its choices.
+        yearLevelSelect.addEventListener('change', () => {
+            const isCollege = collegeYearLevels.includes(yearLevelSelect.value);
+            const choices = isCollege ? degreePrograms : ['N/A'];
+
+            programSelect.replaceChildren();
+            if (isCollege) {
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select degree program / course';
+                placeholder.disabled = true;
+                placeholder.selected = true;
+                programSelect.appendChild(placeholder);
+            }
+
+            choices.forEach((program) => {
+                const option = document.createElement('option');
+                option.value = program;
+                option.textContent = program;
+                programSelect.appendChild(option);
+            });
+
+            programSelect.disabled = false;
+        });
+
         const sidebarToggle = document.getElementById('sidebarToggle');
 
         // Toggle the sidebar and keep its accessible state labels in sync.
