@@ -31,6 +31,7 @@ $saved_request_id = filter_input(
 ) ?: null;
 $requests = [];
 $follow_up_messages = [];
+$date_filter = trim($_GET['date_filter'] ?? $_POST['date_filter'] ?? '');
 
 $con->query("CREATE TABLE IF NOT EXISTS follow_up_messages (
     id INT NOT NULL AUTO_INCREMENT,
@@ -468,6 +469,7 @@ foreach ($requests as $request) {
                     placeholder="Search requests..."
                     value="<?= htmlspecialchars($search) ?>"
                 >
+                <input type="date" name="date_filter" value="<?= htmlspecialchars($date_filter) ?>" aria-label="Filter by date">
                 <input type="hidden" name="tab" value="<?= htmlspecialchars($current_tab) ?>">
 
                 <button type="submit">
@@ -475,12 +477,12 @@ foreach ($requests as $request) {
                 </button>
             </div>
 
-            <?php if ($search !== ''): ?>
+            <?php if ($search !== '' || $date_filter !== ''): ?>
                 <a
                     href="admin_dashboard.php?<?= http_build_query(['tab' => $current_tab]) ?>"
                     class="clear-search"
                 >
-                    Clear Search
+                    Clear Search & Filter
                 </a>
             <?php endif; ?>
         </form>
@@ -699,6 +701,14 @@ foreach ($requests as $request) {
                                 continue;
                             }
                         }
+
+
+                        if ($date_filter !== '') {
+                                    $request_date = date('Y-m-d', strtotime($request['created_at']));
+                                    if ($request_date !== $date_filter) {
+                                        continue;
+                                    }
+                                }
 
 
                         $displayed_requests++;
