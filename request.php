@@ -22,6 +22,13 @@ require_once("./helpers/NotificationService.php");
 $con = connection();
 $so = new SystemOperators();
 
+// Retrieve the one-time success message after redirecting from a submission.
+$submitted_file_no = null;
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_SESSION['request_success_reference'])) {
+    $submitted_file_no = $_SESSION['request_success_reference'];
+    unset($_SESSION['request_success_reference']);
+}
+
 $year_levels = [
     'Nursery',
     'Kindergarten 1',
@@ -131,11 +138,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {
             $admin_stmt->close();
             $con->commit();
             $insert_stmt->close();
-            // Show the tracking number and direct the student to request tracking.
-            echo "<script> 
-                    alert('Request submitted successfully!\\nYour Reference/File No. is: " . $raw_file_no . "\\nPlease save this number for tracking.');
-                    window.location='track.php';
-                  </script>";
+            // Redirect after saving so refreshing the confirmation cannot resubmit the form.
+            $_SESSION['request_success_reference'] = $raw_file_no;
+            $con->close();
+            header('Location: request.php');
             exit();
         }
         // Revert the transaction if the request could not be inserted.
@@ -295,8 +301,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {
         </form>
     </main>
 
+    <?php if ($submitted_file_no !== null): ?>
+        <div class="request-success-overlay">
+            <section
+                class="request-success-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="request-success-title"
+                aria-describedby="request-success-description"
+            >
+                <div class="request-success-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="m5 12 4 4L19 6"></path>
+                    </svg>
+                </div>
+                <p class="request-success-eyebrow">Request received</p>
+                <h2 id="request-success-title">Successfully submitted</h2>
+                <p id="request-success-description">
+                    Your document request has been submitted. Save your reference number to track its status.
+                </p>
+                <label class="request-reference-label" for="requestReference">Reference/File No.</label>
+                <div class="request-reference-row">
+                    <input
+                        id="requestReference"
+                        type="text"
+                        value="<?= htmlspecialchars($submitted_file_no, ENT_QUOTES, 'UTF-8') ?>"
+                        readonly
+                    >
+                    <button class="request-copy-button" id="copyRequestReference" type="button">Copy</button>
+                </div>
+                <p class="request-copy-feedback" id="copyRequestFeedback" aria-live="polite"></p>
+                <div class="request-success-actions">
+                    <a class="request-dashboard-button" href="student_dashboard.php">Back to dashboard</a>
+                    <a class="request-track-button" href="track.php">Go to track request</a>
+                </div>
+            </section>
+        </div>
+    <?php endif; ?>
+
     <!-- Enable sidebar collapse and filter navigation links from the search box. -->
     <script>
+        const copyReferenceButton = document.getElementById('copyRequestReference');
+        if (copyReferenceButton) {
+            copyReferenceButton.addEventListener('click', async () => {
+                const referenceInput = document.getElementById('requestReference');
+                const feedback = document.getElementById('copyRequestFeedback');
+                try {
+                    await navigator.clipboard.writeText(referenceInput.value);
+                    feedback.textContent = 'Reference number copied.';
+                } catch (error) {
+                    referenceInput.select();
+                    const copied = document.execCommand('copy');
+                    feedback.textContent = copied
+                        ? 'Reference number copied.'
+                        : 'Copy failed. Select and copy the reference number manually.';
+                }
+            });
+        }
+
         const yearLevelSelect = document.getElementById('yearLevel');
         const programSelect = document.getElementById('program');
         const collegeYearLevels = <?= json_encode($college_year_levels, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
