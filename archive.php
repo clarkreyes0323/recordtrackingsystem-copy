@@ -98,10 +98,11 @@ if ($result = $con->query($query)) {
                 </span>
             </a>
             <div class="admin-topbar-actions">
+                <nav class="admin-topbar-nav" aria-label="Admin navigation">
+                    <a class="admin-nav-link" href="admin_dashboard.php">Dashboard</a>
+                    <a class="admin-nav-link" href="archive.php" aria-current="page">Archive</a>
+                </nav>
                 <?php include("./helpers/notification_center.php"); ?>
-                <a href="admin_dashboard.php" class="btn btn-outline-secondary btn-sm me-2 text-decoration-none fw-semibold">
-                    ← Back to Dashboard
-                </a>
                 <a href="logout.php" class="admin-logout">Sign out</a>
             </div>
         </div>

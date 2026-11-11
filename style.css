@@ -1470,7 +1470,7 @@ body.student-dashboard-page {
     align-items: center;
     justify-content: space-between;
     gap: 24px;
-    max-width: 1320px;
+    max-width: none;
     margin: 0 auto;
     padding: 12px 28px;
 }
@@ -1481,6 +1481,22 @@ body.student-dashboard-page {
     gap: 12px;
     color: #fff;
     text-decoration: none;
+}
+
+body.student-sidebar-page.sidebar-collapsed .student-topbar .student-brand {
+    margin-left: 104px;
+}
+
+body.student-sidebar-page:not(.sidebar-collapsed) .student-topbar .student-brand {
+    margin-left: 268px;
+}
+
+body.student-sidebar-page.sidebar-collapsed .student-topbar-actions {
+    margin-right: 104px;
+}
+
+body.student-sidebar-page:not(.sidebar-collapsed) .student-topbar-actions {
+    margin-right: 268px;
 }
 
 .student-dashboard-page .brand-mark {
@@ -1529,13 +1545,13 @@ body.student-dashboard-page {
     color: var(--student-gold);
 }
 
-.student-dashboard-page .student-topbar-actions .student-new-request {
+.student-dashboard-page .student-topbar-actions .student-nav-link[aria-current="page"] {
     border-radius: 5px;
     background: var(--student-gold);
     color: #17382c;
 }
 
-.student-dashboard-page .student-topbar-actions .student-new-request:hover {
+.student-dashboard-page .student-topbar-actions .student-nav-link[aria-current="page"]:hover {
     background: #ffda68;
     color: #17382c;
 }
@@ -1794,10 +1810,15 @@ body.student-dashboard-page {
         padding: 14px 18px;
     }
 
+    body.student-sidebar-page .student-topbar .student-brand {
+        margin-left: 130px;
+    }
+
     .student-dashboard-page .student-topbar-actions {
         width: 100%;
         flex-wrap: wrap;
         gap: 7px;
+        margin-right: 0;
     }
 
     .student-dashboard-page .student-main {
@@ -1836,12 +1857,25 @@ body.admin-dashboard-page {
 .admin-dashboard-page .admin-topbar-inner {
     display: flex;
     min-height: 76px;
-    max-width: 1480px;
     align-items: center;
     justify-content: space-between;
     gap: 24px;
+    max-width: 1480px;
     margin: 0 auto;
     padding: 12px 32px;
+}
+
+body.admin-dashboard-page .admin-topbar-inner {
+    max-width: none;
+    padding: 12px 28px;
+}
+
+body.admin-dashboard-page .admin-topbar .admin-brand {
+    margin-left: 104px;
+}
+
+body.admin-dashboard-page .admin-topbar-actions {
+    margin-right: 104px;
 }
 
 .admin-dashboard-page .admin-brand {
@@ -1884,6 +1918,35 @@ body.admin-dashboard-page {
     display: flex;
     align-items: center;
     gap: 14px;
+}
+
+.admin-dashboard-page .admin-topbar-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-dashboard-page .admin-nav-link {
+    padding: 9px 12px;
+    border-radius: 5px;
+    color: #f5faf7;
+    font-size: .92rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.admin-dashboard-page .admin-nav-link:hover {
+    color: #f1c644;
+}
+
+.admin-dashboard-page .admin-nav-link[aria-current="page"] {
+    background: #f1c644;
+    color: #17382c;
+}
+
+.admin-dashboard-page .admin-nav-link[aria-current="page"]:hover {
+    background: #ffda68;
+    color: #17382c;
 }
 
 .admin-dashboard-page .admin-logout {
@@ -2225,9 +2288,18 @@ body.admin-dashboard-page {
         padding: 14px 16px;
     }
 
+    body.admin-dashboard-page .admin-topbar .admin-brand {
+        margin-left: 84px;
+    }
+
     .admin-dashboard-page .admin-topbar-actions {
         width: 100%;
         justify-content: flex-end;
+        margin-right: 0;
+    }
+
+    .admin-dashboard-page .admin-topbar-nav {
+        flex-wrap: wrap;
     }
 
     .admin-dashboard-page .admin-main {

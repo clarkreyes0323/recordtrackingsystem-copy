@@ -154,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnTrack']) && $searc
     <title>Track Request Status</title>
     <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
-<body class="student-dashboard-page sidebar-collapsed">
+<body class="student-dashboard-page student-sidebar-page sidebar-collapsed">
     <header class="student-topbar">
         <div class="student-topbar-inner">
             <a class="student-brand" href="student_dashboard.php" aria-label="FEU Roosevelt student portal home">
@@ -164,7 +164,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnTrack']) && $searc
                     <strong>Student Portal</strong>
                 </span>
             </a>
-            <nav class="student-topbar-actions" aria-label="Student actions">
+            <nav class="student-topbar-actions" aria-label="Student navigation">
+                <a class="student-nav-link" href="student_dashboard.php">Dashboard</a>
+                <a class="student-nav-link" href="track.php" aria-current="page">Track Requests</a>
+                <a class="student-nav-link" href="request.php">New Request</a>
+                <a class="student-nav-link" href="faq.php">FAQs</a>
                 <?php include "./helpers/notification_center.php"; ?>
                 <a href="logout.php" class="logout">Sign out</a>
             </nav>
@@ -202,10 +206,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnTrack']) && $searc
                 <h1>Track a Document Request</h1>
                 <p>FEU Roosevelt Student Portal</p>
             </div>
-            <nav class="tracker-nav" aria-label="Student navigation">
-                <a href="student_dashboard.php">Dashboard</a>
-                <a href="request.php">New Request</a>
-            </nav>
         </header>
 
         <form id="lookup-form" class="lookup-panel" action="track.php" method="post">

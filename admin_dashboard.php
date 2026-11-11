@@ -346,6 +346,10 @@ foreach ($requests as $request) {
                 </span>
             </a>
             <div class="admin-topbar-actions">
+                <nav class="admin-topbar-nav" aria-label="Admin navigation">
+                    <a class="admin-nav-link" href="admin_dashboard.php" aria-current="page">Dashboard</a>
+                    <a class="admin-nav-link" href="archive.php">Archive</a>
+                </nav>
                 <?php include("./helpers/notification_center.php"); ?>
                 <a href="logout.php" class="admin-logout">Sign out</a>
             </div>

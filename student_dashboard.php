@@ -146,7 +146,7 @@ $statusClasses = [
     <link rel="stylesheet" href="style.css?v=<?= filemtime(__DIR__ . '/style.css') ?>">
 </head>
 
-<body class="student-dashboard-page sidebar-collapsed">
+<body class="student-dashboard-page student-sidebar-page sidebar-collapsed">
     <header class="student-topbar">
         <div class="student-topbar-inner">
             <a class="student-brand" href="student_dashboard.php" aria-label="FEU Roosevelt student portal home">
@@ -157,8 +157,9 @@ $statusClasses = [
                 </span>
             </a>
             <nav class="student-topbar-actions" aria-label="Student navigation">
+                <a class="student-nav-link" href="student_dashboard.php" aria-current="page">Dashboard</a>
                 <a class="student-nav-link" href="track.php">Track Requests</a>
-                <a class="student-nav-link student-new-request" href="request.php">New Request</a>
+                <a class="student-nav-link" href="request.php">New Request</a>
                 <a class="student-nav-link" href="faq.php">FAQs</a>
                 <?php include "./helpers/notification_center.php"; ?>
                 <a href="logout.php" class="logout">Sign out</a>

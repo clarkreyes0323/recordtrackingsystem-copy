@@ -168,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {
     <!-- Load the shared styles and refresh the asset URL to avoid stale CSS. -->
     <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
-<body class="student-dashboard-page student-request-page sidebar-collapsed">
+<body class="student-dashboard-page student-sidebar-page student-request-page sidebar-collapsed">
     <!-- Provide the portal brand and account actions at the top of the page. -->
     <header class="student-topbar">
         <div class="student-topbar-inner">
@@ -179,7 +179,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btnRegister'])) {
                     <strong>Student Portal</strong>
                 </span>
             </a>
-            <nav class="student-topbar-actions" aria-label="Student actions">
+            <nav class="student-topbar-actions" aria-label="Student navigation">
+                <a class="student-nav-link" href="student_dashboard.php">Dashboard</a>
+                <a class="student-nav-link" href="track.php">Track Requests</a>
+                <a class="student-nav-link" href="request.php" aria-current="page">New Request</a>
+                <a class="student-nav-link" href="faq.php">FAQs</a>
                 <?php include "./helpers/notification_center.php"; ?>
                 <a href="logout.php" class="logout">Sign out</a>
             </nav>
